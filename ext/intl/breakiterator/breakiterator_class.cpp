@@ -38,6 +38,7 @@ extern "C" {
 }
 
 using PHP::CodePointBreakIterator;
+using icu::RuleBasedBreakIterator;
 
 /* {{{ Global variables */
 zend_class_entry *BreakIterator_ce_ptr;
@@ -47,7 +48,7 @@ zend_object_handlers BreakIterator_handlers;
 /* }}} */
 
 U_CFUNC	void breakiterator_object_create(zval *object,
-										 BreakIterator *biter, int brand_new TSRMLS_DC)
+										 BreakIterator *biter, int brand_new)
 {
 	UClassID classId = biter->getDynamicClassID();
 	zend_class_entry *ce;
@@ -63,11 +64,11 @@ U_CFUNC	void breakiterator_object_create(zval *object,
 	if (brand_new) {
 		object_init_ex(object, ce);
 	}
-	breakiterator_object_construct(object, biter TSRMLS_CC);
+	breakiterator_object_construct(object, biter);
 }
 
 U_CFUNC void breakiterator_object_construct(zval *object,
-											BreakIterator *biter TSRMLS_DC)
+											BreakIterator *biter)
 {
 	BreakIterator_object *bio;
 
@@ -78,7 +79,7 @@ U_CFUNC void breakiterator_object_construct(zval *object,
 
 /* {{{ compare handler for BreakIterator */
 static int BreakIterator_compare_objects(zval *object1,
-										 zval *object2 TSRMLS_DC)
+										 zval *object2)
 {
 	BreakIterator_object	*bio1,
 							*bio2;
@@ -95,19 +96,19 @@ static int BreakIterator_compare_objects(zval *object1,
 /* }}} */
 
 /* {{{ clone handler for BreakIterator */
-static zend_object *BreakIterator_clone_obj(zval *object TSRMLS_DC)
+static zend_object *BreakIterator_clone_obj(zend_object *object)
 {
 	BreakIterator_object	*bio_orig,
 							*bio_new;
 	zend_object				*ret_val;
 
-	bio_orig = Z_INTL_BREAKITERATOR_P(object);
-	intl_errors_reset(INTL_DATA_ERROR_P(bio_orig) TSRMLS_CC);
+	bio_orig = php_intl_breakiterator_fetch_object(object);
+	intl_errors_reset(INTL_DATA_ERROR_P(bio_orig));
 
-	ret_val = BreakIterator_ce_ptr->create_object(Z_OBJCE_P(object) TSRMLS_CC);
+	ret_val = BreakIterator_ce_ptr->create_object(object->ce);
 	bio_new  = php_intl_breakiterator_fetch_object(ret_val);
 
-	zend_objects_clone_members(&bio_new->zo, &bio_orig->zo TSRMLS_CC);
+	zend_objects_clone_members(&bio_new->zo, &bio_orig->zo);
 
 	if (bio_orig->biter != NULL) {
 		BreakIterator *new_biter;
@@ -116,18 +117,18 @@ static zend_object *BreakIterator_clone_obj(zval *object TSRMLS_DC)
 		if (!new_biter) {
 			zend_string *err_msg;
 			intl_errors_set_code(BREAKITER_ERROR_P(bio_orig),
-				U_MEMORY_ALLOCATION_ERROR TSRMLS_CC);
+				U_MEMORY_ALLOCATION_ERROR);
 			intl_errors_set_custom_msg(BREAKITER_ERROR_P(bio_orig),
-				"Could not clone BreakIterator", 0 TSRMLS_CC);
-			err_msg = intl_error_get_message(BREAKITER_ERROR_P(bio_orig) TSRMLS_CC);
-			zend_throw_exception(NULL, err_msg->val, 0 TSRMLS_CC);
+				"Could not clone BreakIterator", 0);
+			err_msg = intl_error_get_message(BREAKITER_ERROR_P(bio_orig));
+			zend_throw_exception(NULL, ZSTR_VAL(err_msg), 0);
 			zend_string_free(err_msg);
 		} else {
 			bio_new->biter = new_biter;
 			ZVAL_COPY(&bio_new->text, &bio_orig->text);
 		}
 	} else {
-		zend_throw_exception(NULL, "Cannot clone unconstructed BreakIterator", 0 TSRMLS_CC);
+		zend_throw_exception(NULL, "Cannot clone unconstructed BreakIterator", 0);
 	}
 
 	return ret_val;
@@ -135,7 +136,7 @@ static zend_object *BreakIterator_clone_obj(zval *object TSRMLS_DC)
 /* }}} */
 
 /* {{{ get_debug_info handler for BreakIterator */
-static HashTable *BreakIterator_get_debug_info(zval *object, int *is_temp TSRMLS_DC)
+static HashTable *BreakIterator_get_debug_info(zend_object *object, int *is_temp)
 {
 	zval val;
 	HashTable *debug_info;
@@ -144,10 +145,9 @@ static HashTable *BreakIterator_get_debug_info(zval *object, int *is_temp TSRMLS
 
 	*is_temp = 1;
 
-	ALLOC_HASHTABLE(debug_info);
-	zend_hash_init(debug_info, 8, NULL, ZVAL_PTR_DTOR, 0);
+	debug_info = zend_new_array(8);
 
-	bio  = Z_INTL_BREAKITERATOR_P(object);
+	bio  = php_intl_breakiterator_fetch_object(object);
 	biter = bio->biter;
 
 	if (biter == NULL) {
@@ -167,7 +167,7 @@ static HashTable *BreakIterator_get_debug_info(zval *object, int *is_temp TSRMLS
 	}
 
 	ZVAL_STRING(&val, const_cast<char*>(typeid(*biter).name()));
-	zend_hash_str_update(debug_info, "type", sizeof("type") - 1, &bio->text);
+	zend_hash_str_update(debug_info, "type", sizeof("type") - 1, &val);
 
 	return debug_info;
 }
@@ -176,23 +176,16 @@ static HashTable *BreakIterator_get_debug_info(zval *object, int *is_temp TSRMLS
 /* {{{ void breakiterator_object_init(BreakIterator_object* to)
  * Initialize internals of BreakIterator_object not specific to zend standard objects.
  */
-static void breakiterator_object_init(BreakIterator_object *bio TSRMLS_DC)
+static void breakiterator_object_init(BreakIterator_object *bio)
 {
-	intl_error_init(BREAKITER_ERROR_P(bio) TSRMLS_CC);
+	intl_error_init(BREAKITER_ERROR_P(bio));
 	bio->biter = NULL;
 	ZVAL_UNDEF(&bio->text);
 }
 /* }}} */
 
-/* {{{ BreakIterator_objects_dtor */
-static void BreakIterator_objects_dtor(zend_object *object TSRMLS_DC)
-{
-	zend_objects_destroy_object(object TSRMLS_CC);
-}
-/* }}} */
-
 /* {{{ BreakIterator_objects_free */
-static void BreakIterator_objects_free(zend_object *object TSRMLS_DC)
+static void BreakIterator_objects_free(zend_object *object)
 {
 	BreakIterator_object* bio = php_intl_breakiterator_fetch_object(object);
 
@@ -201,22 +194,22 @@ static void BreakIterator_objects_free(zend_object *object TSRMLS_DC)
 		delete bio->biter;
 		bio->biter = NULL;
 	}
-	intl_error_reset(BREAKITER_ERROR_P(bio) TSRMLS_CC);
+	intl_error_reset(BREAKITER_ERROR_P(bio));
 
-	zend_object_std_dtor(&bio->zo TSRMLS_CC);
+	zend_object_std_dtor(&bio->zo);
 }
 /* }}} */
 
 /* {{{ BreakIterator_object_create */
-static zend_object *BreakIterator_object_create(zend_class_entry *ce TSRMLS_DC)
+static zend_object *BreakIterator_object_create(zend_class_entry *ce)
 {
 	BreakIterator_object*	intern;
 
 	intern = (BreakIterator_object*)ecalloc(1, sizeof(BreakIterator_object) + sizeof(zval) * (ce->default_properties_count - 1));
 
-	zend_object_std_init(&intern->zo, ce TSRMLS_CC);
+	zend_object_std_init(&intern->zo, ce);
     object_properties_init((zend_object*) intern, ce);
-	breakiterator_object_init(intern TSRMLS_CC);
+	breakiterator_object_init(intern);
 
 	intern->zo.handlers = &BreakIterator_handlers;
 
@@ -297,9 +290,7 @@ static const zend_function_entry RuleBasedBreakIterator_class_functions[] = {
 	PHP_ME_MAPPING(getRules,				rbbi_get_rules,							ainfo_biter_void,					ZEND_ACC_PUBLIC)
 	PHP_ME_MAPPING(getRuleStatus,			rbbi_get_rule_status,					ainfo_biter_void,					ZEND_ACC_PUBLIC)
 	PHP_ME_MAPPING(getRuleStatusVec,		rbbi_get_rule_status_vec,				ainfo_biter_void,					ZEND_ACC_PUBLIC)
-#if U_ICU_VERSION_MAJOR_NUM * 10 + U_ICU_VERSION_MINOR_NUM >= 48
 	PHP_ME_MAPPING(getBinaryRules,			rbbi_get_binary_rules,					ainfo_biter_void,					ZEND_ACC_PUBLIC)
-#endif
 	PHP_FE_END
 };
 /* }}} */
@@ -316,7 +307,7 @@ static const zend_function_entry CodePointBreakIterator_class_functions[] = {
 /* {{{ breakiterator_register_BreakIterator_class
  * Initialize 'BreakIterator' class
  */
-U_CFUNC void breakiterator_register_BreakIterator_class(TSRMLS_D)
+U_CFUNC void breakiterator_register_BreakIterator_class(void)
 {
 	zend_class_entry ce;
 
@@ -324,27 +315,26 @@ U_CFUNC void breakiterator_register_BreakIterator_class(TSRMLS_D)
 	INIT_CLASS_ENTRY(ce, "IntlBreakIterator", BreakIterator_class_functions);
 	ce.create_object = BreakIterator_object_create;
 	ce.get_iterator = _breakiterator_get_iterator;
-	BreakIterator_ce_ptr = zend_register_internal_class(&ce TSRMLS_CC);
+	BreakIterator_ce_ptr = zend_register_internal_class(&ce);
 
-	memcpy(&BreakIterator_handlers, zend_get_std_object_handlers(),
+	memcpy(&BreakIterator_handlers, &std_object_handlers,
 		sizeof BreakIterator_handlers);
 	BreakIterator_handlers.offset = XtOffsetOf(BreakIterator_object, zo);
 	BreakIterator_handlers.compare_objects = BreakIterator_compare_objects;
 	BreakIterator_handlers.clone_obj = BreakIterator_clone_obj;
 	BreakIterator_handlers.get_debug_info = BreakIterator_get_debug_info;
-	BreakIterator_handlers.dtor_obj = BreakIterator_objects_dtor;
 	BreakIterator_handlers.free_obj = BreakIterator_objects_free;
 
-	zend_class_implements(BreakIterator_ce_ptr TSRMLS_CC, 1,
+	zend_class_implements(BreakIterator_ce_ptr, 1,
 			zend_ce_traversable);
 
 	zend_declare_class_constant_long(BreakIterator_ce_ptr,
-		"DONE", sizeof("DONE") - 1, BreakIterator::DONE TSRMLS_CC );
+		"DONE", sizeof("DONE") - 1, BreakIterator::DONE );
 
 	/* Declare constants that are defined in the C header */
 #define BREAKITER_DECL_LONG_CONST(name) \
 	zend_declare_class_constant_long(BreakIterator_ce_ptr, #name, \
-		sizeof(#name) - 1, UBRK_ ## name TSRMLS_CC)
+		sizeof(#name) - 1, UBRK_ ## name)
 
 	BREAKITER_DECL_LONG_CONST(WORD_NONE);
 	BREAKITER_DECL_LONG_CONST(WORD_NONE_LIMIT);
@@ -374,12 +364,12 @@ U_CFUNC void breakiterator_register_BreakIterator_class(TSRMLS_D)
 	INIT_CLASS_ENTRY(ce, "IntlRuleBasedBreakIterator",
 			RuleBasedBreakIterator_class_functions);
 	RuleBasedBreakIterator_ce_ptr = zend_register_internal_class_ex(&ce,
-			BreakIterator_ce_ptr TSRMLS_CC);
+			BreakIterator_ce_ptr);
 
 	/* Create and register 'CodePointBreakIterator' class. */
 	INIT_CLASS_ENTRY(ce, "IntlCodePointBreakIterator",
 			CodePointBreakIterator_class_functions);
 	CodePointBreakIterator_ce_ptr = zend_register_internal_class_ex(&ce,
-			BreakIterator_ce_ptr TSRMLS_CC);
+			BreakIterator_ce_ptr);
 }
 /* }}} */

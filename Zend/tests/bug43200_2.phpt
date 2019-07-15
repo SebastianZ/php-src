@@ -1,5 +1,5 @@
 --TEST--
-Bug #43200.2 (Interface implementation / inheritence not possible in abstract classes)
+Bug #43200.2 (Interface implementation / inheritance not possible in abstract classes)
 --FILE--
 <?php
 
@@ -21,5 +21,5 @@ $o = new C();
 $o->foo();
 
 ?>
---EXPECTF--
+--EXPECT--
 works

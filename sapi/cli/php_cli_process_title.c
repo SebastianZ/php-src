@@ -2,7 +2,7 @@
   +----------------------------------------------------------------------+
   | PHP Version 7                                                        |
   +----------------------------------------------------------------------+
-  | Copyright (c) 1997-2014 The PHP Group                                |
+  | Copyright (c) The PHP Group                                          |
   +----------------------------------------------------------------------+
   | This source file is subject to version 3.01 of the PHP license,      |
   | that is bundled with this package in the file LICENSE, and is        |
@@ -16,8 +16,6 @@
   +----------------------------------------------------------------------+
 */
 
-/* $Id$ */
-
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
@@ -26,7 +24,7 @@
 #include "php_cli_process_title.h"
 #include "ps_title.h"
 
-/* {{{ proto boolean cli_set_process_title(string arg)
+/* {{{ proto bool cli_set_process_title(string arg)
    Return a boolean to confirm if the process title was successfully changed or not */
 PHP_FUNCTION(cli_set_process_title)
 {
@@ -34,7 +32,7 @@ PHP_FUNCTION(cli_set_process_title)
     size_t title_len;
     int rc;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &title, &title_len) == FAILURE) {
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &title, &title_len) == FAILURE) {
         return;
     }
 
@@ -43,7 +41,7 @@ PHP_FUNCTION(cli_set_process_title)
         RETURN_TRUE;
     }
 
-    php_error_docref(NULL TSRMLS_CC, E_WARNING, "cli_set_process_title had an error: %s", ps_title_errno(rc));
+    php_error_docref(NULL, E_WARNING, "cli_set_process_title had an error: %s", ps_title_errno(rc));
     RETURN_FALSE;
 }
 /* }}} */
@@ -62,19 +60,10 @@ PHP_FUNCTION(cli_get_process_title)
 
         rc = get_ps_title(&length, &title);
         if (rc != PS_TITLE_SUCCESS) {
-                php_error_docref(NULL TSRMLS_CC, E_WARNING, "cli_get_process_title had an error: %s", ps_title_errno(rc));
+                php_error_docref(NULL, E_WARNING, "cli_get_process_title had an error: %s", ps_title_errno(rc));
                 RETURN_NULL();
         }
 
         RETURN_STRINGL(title, length);
 }
 /* }}} */
-
-/*
- * Local variables:
- * tab-width: 4
- * c-basic-offset: 4
- * End:
- * vim600: noet sw=4 ts=4 fdm=marker
- * vim<600: noet sw=4 ts=4
- */

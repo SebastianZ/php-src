@@ -1,8 +1,8 @@
-/* 
+/*
    +----------------------------------------------------------------------+
    | PHP Version 7                                                        |
    +----------------------------------------------------------------------+
-   | Copyright (c) 1997-2014 The PHP Group                                |
+   | Copyright (c) The PHP Group                                          |
    +----------------------------------------------------------------------+
    | This source file is subject to version 3.01 of the PHP license,      |
    | that is bundled with this package in the file LICENSE, and is        |
@@ -16,8 +16,6 @@
    |         Ilia Alshanetsky <ilia@prohost.org>                          |
    +----------------------------------------------------------------------+
  */
-
-/* $Id$ */
 
 #include "php.h"
 #include "php_scandir.h"
@@ -35,20 +33,16 @@
 #ifdef PHP_WIN32
 #include "win32/param.h"
 #include "win32/readdir.h"
-#endif  
+#endif
 
 #include <stdlib.h>
-#ifndef NETWARE
 #include <search.h>
-#endif
 
 #endif /* HAVE_SCANDIR */
 
 #ifndef HAVE_ALPHASORT
 
-#ifdef HAVE_STRING_H
 #include <string.h>
-#endif
 
 PHPAPI int php_alphasort(const struct dirent **a, const struct dirent **b)
 {
@@ -63,8 +57,7 @@ PHPAPI int php_scandir(const char *dirname, struct dirent **namelist[], int (*se
 	struct dirent **vector = NULL;
 	int vector_size = 0;
 	int nfiles = 0;
-	char entry[sizeof(struct dirent)+MAXPATHLEN];
-	struct dirent *dp = (struct dirent *)&entry;
+	struct dirent *dp;
 
 	if (namelist == NULL) {
 		return -1;
@@ -74,8 +67,8 @@ PHPAPI int php_scandir(const char *dirname, struct dirent **namelist[], int (*se
 		return -1;
 	}
 
-	while (!php_readdir_r(dirp, (struct dirent *)entry, &dp) && dp) {
-		int dsize = 0;
+	while ((dp = readdir(dirp))) {
+		size_t dsize = 0;
 		struct dirent *newdp = NULL;
 
 		if (selector && (*selector)(dp) == 0) {
@@ -86,7 +79,7 @@ PHPAPI int php_scandir(const char *dirname, struct dirent **namelist[], int (*se
 			struct dirent **newv;
 			if (vector_size == 0) {
 				vector_size = 10;
-			} else { 
+			} else {
 				vector_size *= 2;
 			}
 
@@ -112,7 +105,7 @@ PHPAPI int php_scandir(const char *dirname, struct dirent **namelist[], int (*se
 	*namelist = vector;
 
 	if (compare) {
-		qsort (*namelist, nfiles, sizeof(struct dirent *), compare);
+		qsort (*namelist, nfiles, sizeof(struct dirent *), (int (*) (const void *, const void *)) compare);
 	}
 
 	return nfiles;
@@ -122,15 +115,6 @@ fail:
 		free(vector[nfiles]);
 	}
 	free(vector);
-	return -1;	
+	return -1;
 }
 #endif
-
-/*
- * Local variables:
- * tab-width: 4
- * c-basic-offset: 4
- * End:
- * vim600: sw=4 ts=4 fdm=marker
- * vim<600: sw=4 ts=4
- */

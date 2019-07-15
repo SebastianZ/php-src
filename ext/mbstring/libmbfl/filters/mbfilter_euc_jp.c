@@ -5,7 +5,7 @@
  * LICENSE NOTICES
  *
  * This file is part of "streamable kanji code filter and converter",
- * which is distributed under the terms of GNU Lesser General Public 
+ * which is distributed under the terms of GNU Lesser General Public
  * License (version 2) as published by the Free Software Foundation.
  *
  * This software is distributed in the hope that it will be useful,
@@ -24,7 +24,7 @@
 /*
  * The source code included in this files was separated from mbfilter_ja.c
  * by moriyoshi koizumi <moriyoshi@php.net> on 4 dec 2002.
- * 
+ *
  */
 
 #ifdef HAVE_CONFIG_H
@@ -66,7 +66,9 @@ const mbfl_encoding mbfl_encoding_euc_jp = {
 	"EUC-JP",
 	(const char *(*)[])&mbfl_encoding_euc_jp_aliases,
 	mblen_table_eucjp,
-	MBFL_ENCTYPE_MBCS
+	MBFL_ENCTYPE_MBCS,
+	&vtbl_eucjp_wchar,
+	&vtbl_wchar_eucjp
 };
 
 const struct mbfl_identify_vtbl vtbl_identify_eucjp = {
@@ -326,6 +328,3 @@ int mbfl_filt_ident_eucjp(int c, mbfl_identify_filter *filter)
 
 	return c;
 }
-
-
-

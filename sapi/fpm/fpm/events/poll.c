@@ -2,7 +2,7 @@
    +----------------------------------------------------------------------+
    | PHP Version 7                                                        |
    +----------------------------------------------------------------------+
-   | Copyright (c) 1997-2014 The PHP Group                                |
+   | Copyright (c) The PHP Group                                          |
    +----------------------------------------------------------------------+
    | This source file is subject to version 3.01 of the PHP license,      |
    | that is bundled with this package in the file LICENSE, and is        |
@@ -15,8 +15,6 @@
    | Authors: Jerome Loyet <jerome@loyet.net>                             |
    +----------------------------------------------------------------------+
 */
-
-/* $Id$ */
 
 #include "../fpm_config.h"
 #include "../fpm_events.h"
@@ -42,7 +40,7 @@ static struct fpm_event_module_s poll_module = {
 	.clean = fpm_event_poll_clean,
 	.wait = fpm_event_poll_wait,
 	.add = fpm_event_poll_add,
-	.remove = fpm_event_poll_remove, 
+	.remove = fpm_event_poll_remove,
 };
 
 static struct pollfd *pollfds = NULL;
@@ -150,7 +148,7 @@ static int fpm_event_poll_wait(struct fpm_event_queue_s *queue, unsigned long in
 			return -1;
 		}
 	}
-	
+
 	/* events have been triggered */
 	if (ret > 0) {
 

@@ -2,7 +2,7 @@
    +----------------------------------------------------------------------+
    | PHP Version 7                                                        |
    +----------------------------------------------------------------------+
-   | Copyright (c) 1997-2014 The PHP Group                                |
+   | Copyright (c) The PHP Group                                          |
    +----------------------------------------------------------------------+
    | This source file is subject to version 3.01 of the PHP license,      |
    | that is bundled with this package in the file LICENSE, and is        |
@@ -16,8 +16,6 @@
    +----------------------------------------------------------------------+
 */
 
-/* $Id$ */
-
 #ifndef PHP_TYPE_H
 #define PHP_TYPE_H
 
@@ -30,7 +28,7 @@ PHP_FUNCTION(settype);
 PHP_FUNCTION(is_null);
 PHP_FUNCTION(is_resource);
 PHP_FUNCTION(is_bool);
-PHP_FUNCTION(is_long);
+PHP_FUNCTION(is_int);
 PHP_FUNCTION(is_float);
 PHP_FUNCTION(is_numeric);
 PHP_FUNCTION(is_string);
@@ -38,5 +36,7 @@ PHP_FUNCTION(is_array);
 PHP_FUNCTION(is_object);
 PHP_FUNCTION(is_scalar);
 PHP_FUNCTION(is_callable);
+PHP_FUNCTION(is_iterable);
+PHP_FUNCTION(is_countable);
 
 #endif

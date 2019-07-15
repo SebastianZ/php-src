@@ -2,7 +2,7 @@
    +----------------------------------------------------------------------+
    | PHP Version 7                                                        |
    +----------------------------------------------------------------------+
-   | Copyright (c) 1997-2014 The PHP Group                                |
+   | Copyright (c) The PHP Group                                          |
    +----------------------------------------------------------------------+
    | This source file is subject to version 3.01 of the PHP license,      |
    | that is bundled with this package in the file LICENSE, and is        |
@@ -15,8 +15,6 @@
    | Authors: Jerome Loyet <jerome@loyet.net>                             |
    +----------------------------------------------------------------------+
 */
-
-/* $Id$ */
 
 #include "../fpm_config.h"
 #include "../fpm_events.h"
@@ -45,7 +43,7 @@ static struct fpm_event_module_s devpoll_module = {
 	.clean = fpm_event_devpoll_clean,
 	.wait = fpm_event_devpoll_wait,
 	.add = fpm_event_devpoll_add,
-	.remove = fpm_event_devpoll_remove, 
+	.remove = fpm_event_devpoll_remove,
 };
 
 int dpfd = -1;
@@ -76,7 +74,7 @@ static int fpm_event_devpoll_init(int max) /* {{{ */
 
 	/* open /dev/poll for future usages */
 	dpfd = open("/dev/poll", O_RDWR);
-	if (dpfd < 0) {  
+	if (dpfd < 0) {
 		zlog(ZLOG_ERROR, "Unable to open /dev/poll");
 		return -1;
 	}
@@ -120,7 +118,7 @@ static int fpm_event_devpoll_init(int max) /* {{{ */
 static int fpm_event_devpoll_clean() /* {{{ */
 {
 	/* close /dev/poll if open */
-	if (dpfd > -1) {  
+	if (dpfd > -1) {
 		close(dpfd);
 		dpfd = -1;
 	}
@@ -168,7 +166,7 @@ static int fpm_event_devpoll_wait(struct fpm_event_queue_s *queue, unsigned long
 		}
 	}
 
-	/* iterate throught triggered events */
+	/* iterate through triggered events */
 	for (i = 0; i < ret; i++) {
 
 		/* find the corresponding event */
@@ -176,7 +174,7 @@ static int fpm_event_devpoll_wait(struct fpm_event_queue_s *queue, unsigned long
 		while (q) {
 
 			/* found */
-			if (q->ev && q->ev->fd == active_pollfds[i].fd) {  
+			if (q->ev && q->ev->fd == active_pollfds[i].fd) {
 
 					/* fire the event */
 					fpm_event_fire(q->ev);
@@ -202,7 +200,7 @@ static int fpm_event_devpoll_add(struct fpm_event_s *ev) /* {{{ */
 {
 	struct pollfd pollfd;
 
-	/* fill pollfd with event informations */
+	/* fill pollfd with event information */
 	pollfd.fd = ev->fd;
 	pollfd.events = POLLIN;
 	pollfd.revents = 0;
@@ -227,7 +225,7 @@ static int fpm_event_devpoll_remove(struct fpm_event_s *ev) /* {{{ */
 {
 	struct pollfd pollfd;
 
-	/* fill pollfd with the same informations as fpm_event_devpoll_add */
+	/* fill pollfd with the same information as fpm_event_devpoll_add */
 	pollfd.fd = ev->fd;
 	pollfd.events = POLLIN | POLLREMOVE;
 	pollfd.revents = 0;

@@ -40,10 +40,10 @@ extern "C" {
 #define INTLITERATOR_METHOD_INIT_VARS				INTL_METHOD_INIT_VARS(IntlIterator, ii)
 #define INTLITERATOR_METHOD_FETCH_OBJECT_NO_CHECK	INTL_METHOD_FETCH_OBJECT(INTL_ITERATOR, ii)
 #define INTLITERATOR_METHOD_FETCH_OBJECT\
-	object = getThis(); \
+	object = ZEND_THIS; \
 	INTLITERATOR_METHOD_FETCH_OBJECT_NO_CHECK; \
 	if (ii->iterator == NULL) { \
-		intl_errors_set(&ii->err, U_ILLEGAL_ARGUMENT_ERROR, "Found unconstructed IntlIterator", 0 TSRMLS_CC); \
+		intl_errors_set(&ii->err, U_ILLEGAL_ARGUMENT_ERROR, "Found unconstructed IntlIterator", 0); \
 		RETURN_FALSE; \
 	}
 
@@ -63,21 +63,22 @@ typedef struct {
 	zend_object_iterator	zoi;
 	zval					current;
 	zval					wrapping_obj;
-	void					(*destroy_it)(zend_object_iterator	*iterator TSRMLS_DC);
+	void					(*destroy_it)(zend_object_iterator	*iterator);
 } zoi_with_current;
 
 extern zend_class_entry *IntlIterator_ce_ptr;
 extern zend_object_handlers IntlIterator_handlers;
 
-U_CFUNC void zoi_with_current_dtor(zend_object_iterator *iter TSRMLS_DC);
-U_CFUNC int zoi_with_current_valid(zend_object_iterator *iter TSRMLS_DC);
-U_CFUNC zval *zoi_with_current_get_current_data(zend_object_iterator *iter TSRMLS_DC);
-U_CFUNC void zoi_with_current_invalidate_current(zend_object_iterator *iter TSRMLS_DC);
+U_CFUNC void zoi_with_current_dtor(zend_object_iterator *iter);
+U_CFUNC int zoi_with_current_valid(zend_object_iterator *iter);
+U_CFUNC zval *zoi_with_current_get_current_data(zend_object_iterator *iter);
+U_CFUNC void zoi_with_current_invalidate_current(zend_object_iterator *iter);
 
 #ifdef __cplusplus
-U_CFUNC void IntlIterator_from_StringEnumeration(StringEnumeration *se, zval *object TSRMLS_DC);
+using icu::StringEnumeration;
+U_CFUNC void IntlIterator_from_StringEnumeration(StringEnumeration *se, zval *object);
 #endif
 
-U_CFUNC void intl_register_IntlIterator_class(TSRMLS_D);
+U_CFUNC void intl_register_IntlIterator_class(void);
 
 #endif // INTL_COMMON_ENUM_H

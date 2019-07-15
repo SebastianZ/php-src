@@ -2,7 +2,7 @@
    +----------------------------------------------------------------------+
    | PHP Version 7                                                        |
    +----------------------------------------------------------------------+
-   | Copyright (c) 1997-2014 The PHP Group                                |
+   | Copyright (c) The PHP Group                                          |
    +----------------------------------------------------------------------+
    | This source file is subject to version 3.01 of the PHP license,      |
    | that is bundled with this package in the file LICENSE, and is        |
@@ -17,8 +17,6 @@
    +----------------------------------------------------------------------+
  */
 
-/* $Id$ */
-
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
@@ -29,13 +27,40 @@
 #include "php_com_dotnet.h"
 #include "php_com_dotnet_internal.h"
 
+static HashTable php_com_typelibraries;
+
+#ifdef ZTS
+static MUTEX_T php_com_typelibraries_mutex;
+#endif
+
+PHP_MINIT_FUNCTION(com_typeinfo)
+{
+	zend_hash_init(&php_com_typelibraries, 0, NULL, php_com_typelibrary_dtor, 1);
+
+#ifdef ZTS
+	php_com_typelibraries_mutex = tsrm_mutex_alloc();
+#endif
+
+	return SUCCESS;
+}
+
+PHP_MSHUTDOWN_FUNCTION(com_typeinfo)
+{
+	zend_hash_destroy(&php_com_typelibraries);
+
+#ifdef ZTS
+	tsrm_mutex_free(php_com_typelibraries_mutex);
+#endif
+
+	return SUCCESS;
+}
 
 /* The search string can be either:
  * a) a file name
  * b) a CLSID, major, minor e.g. "{00000200-0000-0010-8000-00AA006D2EA4},2,0"
  * c) a Type Library name e.g. "Microsoft OLE DB ActiveX Data Objects 1.0 Library"
  */
-PHP_COM_DOTNET_API ITypeLib *php_com_load_typelib(char *search_string, int codepage TSRMLS_DC)
+PHP_COM_DOTNET_API ITypeLib *php_com_load_typelib(char *search_string, int codepage)
 {
 	ITypeLib *TL = NULL;
 	char *strtok_buf, *major, *minor;
@@ -52,7 +77,7 @@ PHP_COM_DOTNET_API ITypeLib *php_com_load_typelib(char *search_string, int codep
 	major = php_strtok_r(NULL, ",", &strtok_buf);
 	minor = php_strtok_r(NULL, ",", &strtok_buf);
 
-	p = php_com_string_to_olestring(search_string, strlen(search_string), codepage TSRMLS_CC);
+	p = php_com_string_to_olestring(search_string, strlen(search_string), codepage);
 
 	if (SUCCEEDED(CLSIDFromString(p, &clsid))) {
 		WORD major_i = 1, minor_i = 0;
@@ -67,11 +92,11 @@ PHP_COM_DOTNET_API ITypeLib *php_com_load_typelib(char *search_string, int codep
 		hr = LoadRegTypeLib((REFGUID)&clsid, major_i, minor_i, LANG_NEUTRAL, &TL);
 
 		/* if that failed, assumed that the GUID is actually a CLSID and
-		 * attemp to get the library via an instance of that class */
+		 * attempt to get the library via an instance of that class */
 		if (FAILED(hr) && (major == NULL || minor == NULL)) {
 			IDispatch *disp = NULL;
 			ITypeInfo *info = NULL;
-			int idx;
+			UINT idx;
 
 			if (SUCCEEDED(hr = CoCreateInstance(&clsid, NULL, CLSCTX_SERVER, &IID_IDispatch, (LPVOID*)&disp)) &&
 					SUCCEEDED(hr = IDispatch_GetTypeInfo(disp, 0, LANG_NEUTRAL, &info))) {
@@ -96,7 +121,7 @@ PHP_COM_DOTNET_API ITypeLib *php_com_load_typelib(char *search_string, int codep
 			DWORD VersionCount;
 			char version[20];
 			char *libname;
-			DWORD libnamelen;
+			long libnamelen;
 
 			if (ERROR_SUCCESS == RegOpenKeyEx(HKEY_CLASSES_ROOT, "TypeLib", 0, KEY_READ, &hkey) &&
 					ERROR_SUCCESS == RegQueryInfoKey(hkey, NULL, NULL, NULL, &SubKeys,
@@ -116,7 +141,7 @@ PHP_COM_DOTNET_API ITypeLib *php_com_load_typelib(char *search_string, int codep
 									continue;
 								}
 								/* get the default value for this key and compare */
-								libnamelen = strlen(search_string)+1;
+								libnamelen = (long)strlen(search_string)+1;
 								if (ERROR_SUCCESS == RegQueryValue(hsubkey, version, libname, &libnamelen)) {
 									if (0 == stricmp(libname, search_string)) {
 										char *str = NULL;
@@ -129,7 +154,7 @@ PHP_COM_DOTNET_API ITypeLib *php_com_load_typelib(char *search_string, int codep
 										}
 										spprintf(&str, 0, "%s,%d,%d", keyname, major_tmp, minor_tmp);
 										/* recurse */
-										TL = php_com_load_typelib(str, codepage TSRMLS_CC);
+										TL = php_com_load_typelib(str, codepage);
 
 										efree(str);
 										break;
@@ -146,14 +171,14 @@ PHP_COM_DOTNET_API ITypeLib *php_com_load_typelib(char *search_string, int codep
 			}
 		}
 	}
-	
+
 	efree(p);
 
 	return TL;
 }
 
 /* Given a type-library, merge it into the current engine state */
-PHP_COM_DOTNET_API int php_com_import_typelib(ITypeLib *TL, int mode, int codepage TSRMLS_DC)
+PHP_COM_DOTNET_API int php_com_import_typelib(ITypeLib *TL, int mode, int codepage)
 {
 	int i, j, interfaces;
 	TYPEKIND pTKind;
@@ -185,34 +210,27 @@ PHP_COM_DOTNET_API int php_com_import_typelib(ITypeLib *TL, int mode, int codepa
 					continue;
 				}
 
-				const_name = php_com_olestring_to_string(bstr_ids, &len, codepage TSRMLS_CC);
-				c.name = zend_string_init(const_name, len, 1);
-				// TODO: avoid reallocation???
-				efree(const_name);
-				if(c.name == NULL) {
-					ITypeInfo_ReleaseVarDesc(TypeInfo, pVarDesc);
-					continue;
-				}
-//???				c.name_len++; /* include NUL */
+				const_name = php_com_olestring_to_string(bstr_ids, &len, codepage);
 				SysFreeString(bstr_ids);
 
 				/* sanity check for the case where the constant is already defined */
-				if ((exists = zend_get_constant(c.name TSRMLS_CC)) != NULL) {
-					if (COMG(autoreg_verbose) && !compare_function(&results, &c.value, exists TSRMLS_CC)) {
-						php_error_docref(NULL TSRMLS_CC, E_WARNING, "Type library constant %s is already defined", c.name);
+				php_com_zval_from_variant(&value, pVarDesc->lpvarValue, codepage);
+				if ((exists = zend_get_constant_str(const_name, len)) != NULL) {
+					if (COMG(autoreg_verbose) && !compare_function(&results, &value, exists)) {
+						php_error_docref(NULL, E_WARNING, "Type library constant %s is already defined", const_name);
 					}
-					zend_string_release(c.name);
+					efree(const_name);
 					ITypeInfo_ReleaseVarDesc(TypeInfo, pVarDesc);
 					continue;
 				}
 
 				/* register the constant */
-				php_com_zval_from_variant(&value, pVarDesc->lpvarValue, codepage TSRMLS_CC);
 				if (Z_TYPE(value) == IS_LONG) {
-					c.flags = mode;
+					ZEND_CONSTANT_SET_FLAGS(&c, mode, 0);
 					ZVAL_LONG(&c.value, Z_LVAL(value));
-					c.module_number = 0;
-					zend_register_constant(&c TSRMLS_CC);
+					c.name = zend_string_init(const_name, len, mode & CONST_PERSISTENT);
+					efree(const_name);
+					zend_register_constant(&c);
 				}
 				ITypeInfo_ReleaseVarDesc(TypeInfo, pVarDesc);
 			}
@@ -223,51 +241,74 @@ PHP_COM_DOTNET_API int php_com_import_typelib(ITypeLib *TL, int mode, int codepa
 }
 
 /* Type-library stuff */
-void php_com_typelibrary_dtor(void *pDest)
+void php_com_typelibrary_dtor(zval *pDest)
 {
-	ITypeLib **Lib = (ITypeLib**)pDest;
-	ITypeLib_Release(*Lib);
+	ITypeLib *Lib = (ITypeLib*)Z_PTR_P(pDest);
+	ITypeLib_Release(Lib);
+}
+
+ITypeLib *php_com_cache_typelib(ITypeLib* TL, char *cache_key, zend_long cache_key_len) {
+	ITypeLib* result;
+#ifdef ZTS
+	tsrm_mutex_lock(php_com_typelibraries_mutex);
+#endif
+
+	result = zend_hash_str_add_ptr(&php_com_typelibraries, cache_key, cache_key_len, TL);
+
+#ifdef ZTS
+	tsrm_mutex_unlock(php_com_typelibraries_mutex);
+#endif
+
+	return result;
 }
 
 PHP_COM_DOTNET_API ITypeLib *php_com_load_typelib_via_cache(char *search_string,
-	int codepage, int *cached TSRMLS_DC)
+	int codepage, int *cached)
 {
 	ITypeLib *TL;
 	char *name_dup;
-	int l;
+	zend_string *key = zend_string_init(search_string, strlen(search_string), 1);
 
-	l = strlen(search_string);
+#ifdef ZTS
+	tsrm_mutex_lock(php_com_typelibraries_mutex);
+#endif
 
-	if ((TL = zend_ts_hash_str_find_ptr(&php_com_typelibraries, search_string, l)) != NULL) {
+	if ((TL = zend_hash_find_ptr(&php_com_typelibraries, key)) != NULL) {
 		*cached = 1;
 		/* add a reference for the caller */
 		ITypeLib_AddRef(TL);
-		return TL;
+
+		goto php_com_load_typelib_via_cache_return;
 	}
 
 	*cached = 0;
-	name_dup = estrndup(search_string, l);
-	TL = php_com_load_typelib(name_dup, codepage TSRMLS_CC);
+	name_dup = estrndup(ZSTR_VAL(key), ZSTR_LEN(key));
+	TL = php_com_load_typelib(name_dup, codepage);
 	efree(name_dup);
 
 	if (TL) {
-		if (NULL != zend_ts_hash_str_update_ptr(&php_com_typelibraries,
-				search_string, l, TL)) {
+		if (NULL != zend_hash_add_ptr(&php_com_typelibraries, key, TL)) {
 			/* add a reference for the hash table */
 			ITypeLib_AddRef(TL);
 		}
 	}
 
+php_com_load_typelib_via_cache_return:
+#ifdef ZTS
+	tsrm_mutex_unlock(php_com_typelibraries_mutex);
+#endif
+	zend_string_release(key);
+
 	return TL;
 }
 
-ITypeInfo *php_com_locate_typeinfo(char *typelibname, php_com_dotnet_object *obj, char *dispname, int sink TSRMLS_DC)
+ITypeInfo *php_com_locate_typeinfo(char *typelibname, php_com_dotnet_object *obj, char *dispname, int sink)
 {
 	ITypeInfo *typeinfo = NULL;
 	ITypeLib *typelib = NULL;
 	int gotguid = 0;
 	GUID iid;
-	
+
 	if (obj) {
 		if (dispname == NULL && sink) {
 			IProvideClassInfo2 *pci2;
@@ -280,7 +321,7 @@ ITypeInfo *php_com_locate_typeinfo(char *typelibname, php_com_dotnet_object *obj
 			if (!gotguid && SUCCEEDED(IDispatch_QueryInterface(V_DISPATCH(&obj->v), &IID_IProvideClassInfo, (void**)&pci))) {
 				/* examine the available interfaces */
 				/* TODO: write some code here */
-				php_error_docref(NULL TSRMLS_CC, E_WARNING, "IProvideClassInfo: this code not yet written!");
+				php_error_docref(NULL, E_WARNING, "IProvideClassInfo: this code not yet written!");
 				IProvideClassInfo_Release(pci);
 			}
 		} else if (dispname == NULL) {
@@ -312,19 +353,19 @@ ITypeInfo *php_com_locate_typeinfo(char *typelibname, php_com_dotnet_object *obj
 		}
 	} else if (typelibname) {
 		/* Fetch the typelibrary and use that to look things up */
-		typelib = php_com_load_typelib(typelibname, CP_THREAD_ACP TSRMLS_CC);
-	} 
+		typelib = php_com_load_typelib(typelibname, CP_THREAD_ACP);
+	}
 
 	if (!gotguid && dispname && typelib) {
 		unsigned short cfound;
 		MEMBERID memid;
-		OLECHAR *olename = php_com_string_to_olestring(dispname, strlen(dispname), CP_ACP TSRMLS_CC);
-			
+		OLECHAR *olename = php_com_string_to_olestring(dispname, strlen(dispname), CP_ACP);
+
 		cfound = 1;
 		if (FAILED(ITypeLib_FindName(typelib, olename, 0, &typeinfo, &memid, &cfound)) || cfound == 0) {
 			CLSID coclass;
 			ITypeInfo *coinfo;
-	
+
 			/* assume that it might be a progid instead */
 			if (SUCCEEDED(CLSIDFromProgID(olename, &coclass)) &&
 					SUCCEEDED(ITypeLib_GetTypeInfoOfGuid(typelib, &coclass, &coinfo))) {
@@ -351,16 +392,16 @@ ITypeInfo *php_com_locate_typeinfo(char *typelibname, php_com_dotnet_object *obj
 						if (SUCCEEDED(ITypeInfo_GetRefTypeOfImplType(coinfo, i, &rt)))
 							if (SUCCEEDED(ITypeInfo_GetRefTypeInfo(coinfo, rt, &typeinfo)))
 								break;
-						
+
 					}
 				}
-				
+
 				ITypeInfo_ReleaseTypeAttr(coinfo, attr);
 				ITypeInfo_Release(coinfo);
 			}
 		}
 
-		
+
 		efree(olename);
 	} else if (gotguid) {
 		ITypeLib_GetTypeInfoOfGuid(typelib, &iid, &typeinfo);
@@ -417,20 +458,20 @@ static inline const char *vt_to_string(VARTYPE vt)
 	return "?";
 }
 
-static char *php_com_string_from_clsid(const CLSID *clsid, int codepage TSRMLS_DC)
+static char *php_com_string_from_clsid(const CLSID *clsid, int codepage)
 {
 	LPOLESTR ole_clsid;
 	char *clsid_str;
 
 	StringFromCLSID(clsid, &ole_clsid);
-	clsid_str = php_com_olestring_to_string(ole_clsid, NULL, codepage TSRMLS_CC);
+	clsid_str = php_com_olestring_to_string(ole_clsid, NULL, codepage);
 	LocalFree(ole_clsid);
 
 	return clsid_str;
 }
 
 
-int php_com_process_typeinfo(ITypeInfo *typeinfo, HashTable *id_to_name, int printdef, GUID *guid, int codepage TSRMLS_DC)
+int php_com_process_typeinfo(ITypeInfo *typeinfo, HashTable *id_to_name, int printdef, GUID *guid, int codepage)
 {
 	TYPEATTR *attr;
 	FUNCDESC *func;
@@ -450,15 +491,15 @@ int php_com_process_typeinfo(ITypeInfo *typeinfo, HashTable *id_to_name, int pri
 		if (guid) {
 			memcpy(guid, &attr->guid, sizeof(GUID));
 		}
-		
+
 		if (printdef) {
 			char *guidstring;
 
 			ITypeInfo_GetDocumentation(typeinfo, MEMBERID_NIL, &olename, NULL, NULL, NULL);
-			ansiname = php_com_olestring_to_string(olename, &ansinamelen, codepage TSRMLS_CC);
+			ansiname = php_com_olestring_to_string(olename, &ansinamelen, codepage);
 			SysFreeString(olename);
 
-			guidstring = php_com_string_from_clsid(&attr->guid, codepage TSRMLS_CC);
+			guidstring = php_com_string_from_clsid(&attr->guid, codepage);
 			php_printf("class %s { /* GUID=%s */\n", ansiname, guidstring);
 			efree(guidstring);
 
@@ -483,9 +524,9 @@ int php_com_process_typeinfo(ITypeInfo *typeinfo, HashTable *id_to_name, int pri
 			if (!isprop || lastid != func->memid) {
 
 				lastid = func->memid;
-				
+
 				ITypeInfo_GetDocumentation(typeinfo, func->memid, &olename, NULL, NULL, NULL);
-				ansiname = php_com_olestring_to_string(olename, &ansinamelen, codepage TSRMLS_CC);
+				ansiname = php_com_olestring_to_string(olename, &ansinamelen, codepage);
 				SysFreeString(olename);
 
 				if (printdef) {
@@ -514,7 +555,7 @@ int php_com_process_typeinfo(ITypeInfo *typeinfo, HashTable *id_to_name, int pri
 
 						ITypeInfo_GetDocumentation(typeinfo, func->memid, NULL, &olename, NULL, NULL);
 						if (olename) {
-							funcdesc = php_com_olestring_to_string(olename, &funcdesclen, codepage TSRMLS_CC);
+							funcdesc = php_com_olestring_to_string(olename, &funcdesclen, codepage);
 							SysFreeString(olename);
 							php_printf("\t/* %s */\n", funcdesc);
 							efree(funcdesc);
@@ -547,7 +588,7 @@ int php_com_process_typeinfo(ITypeInfo *typeinfo, HashTable *id_to_name, int pri
 
 							/* when we handle prop put and get, this will look nicer */
 							if (j+1 < (int)cnames) {
-								funcdesc = php_com_olestring_to_string(names[j+1], &funcdesclen, codepage TSRMLS_CC);
+								funcdesc = php_com_olestring_to_string(names[j+1], &funcdesclen, codepage);
 								SysFreeString(names[j+1]);
 							} else {
 								funcdesc = "???";
@@ -568,7 +609,7 @@ int php_com_process_typeinfo(ITypeInfo *typeinfo, HashTable *id_to_name, int pri
 
 						ITypeInfo_GetDocumentation(typeinfo, func->memid, NULL, &olename, NULL, NULL);
 						if (olename) {
-							funcdesc = php_com_olestring_to_string(olename, &funcdesclen, codepage TSRMLS_CC);
+							funcdesc = php_com_olestring_to_string(olename, &funcdesclen, codepage);
 							SysFreeString(olename);
 							php_printf("\t\t/* %s */\n", funcdesc);
 							efree(funcdesc);
@@ -604,5 +645,3 @@ int php_com_process_typeinfo(ITypeInfo *typeinfo, HashTable *id_to_name, int pri
 
 	return ret;
 }
-
-

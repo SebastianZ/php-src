@@ -2,7 +2,7 @@
    +----------------------------------------------------------------------+
    | PHP Version 7                                                        |
    +----------------------------------------------------------------------+
-   | Copyright (c) 1997-2014 The PHP Group                                |
+   | Copyright (c) The PHP Group                                          |
    +----------------------------------------------------------------------+
    | This source file is subject to version 3.01 of the PHP license,      |
    | that is bundled with this package in the file LICENSE, and is        |
@@ -16,12 +16,10 @@
    +----------------------------------------------------------------------+
 */
 
-/* $Id$ */
-
-/* Synced with php 3.0 revision 1.30 1999-06-16 [ssb] */
-
 #ifndef FILE_H
 #define FILE_H
+
+#include "php_network.h"
 
 PHP_MINIT_FUNCTION(file);
 PHP_MSHUTDOWN_FUNCTION(file);
@@ -37,7 +35,6 @@ PHPAPI PHP_FUNCTION(fread);
 PHPAPI PHP_FUNCTION(fgetc);
 PHPAPI PHP_FUNCTION(fgets);
 PHP_FUNCTION(fscanf);
-PHPAPI PHP_FUNCTION(fgetss);
 PHP_FUNCTION(fgetcsv);
 PHP_FUNCTION(fputcsv);
 PHPAPI PHP_FUNCTION(fwrite);
@@ -60,7 +57,7 @@ PHP_FUNCTION(get_meta_tags);
 PHP_FUNCTION(flock);
 PHP_FUNCTION(fd_set);
 PHP_FUNCTION(fd_isset);
-#if (!defined(__BEOS__) && !defined(NETWARE) && HAVE_REALPATH) || defined(ZTS)
+#if HAVE_REALPATH || defined(ZTS)
 PHP_FUNCTION(realpath);
 #endif
 #ifdef HAVE_FNMATCH
@@ -72,15 +69,17 @@ PHP_FUNCTION(sys_get_temp_dir);
 
 PHP_MINIT_FUNCTION(user_streams);
 
-PHPAPI int php_le_stream_context(TSRMLS_D);
-PHPAPI int php_set_sock_blocking(int socketd, int block TSRMLS_DC);
-PHPAPI int php_copy_file(const char *src, const char *dest TSRMLS_DC);
-PHPAPI int php_copy_file_ex(const char *src, const char *dest, int src_chk TSRMLS_DC);
-PHPAPI int php_copy_file_ctx(const char *src, const char *dest, int src_chk, php_stream_context *ctx TSRMLS_DC);
-PHPAPI int php_mkdir_ex(const char *dir, zend_long mode, int options TSRMLS_DC);
-PHPAPI int php_mkdir(const char *dir, zend_long mode TSRMLS_DC);
-PHPAPI void php_fgetcsv(php_stream *stream, char delimiter, char enclosure, char escape_char, size_t buf_len, char *buf, zval *return_value TSRMLS_DC);
-PHPAPI size_t php_fputcsv(php_stream *stream, zval *fields, char delimiter, char enclosure, char escape_char TSRMLS_DC);
+PHPAPI int php_le_stream_context(void);
+PHPAPI int php_set_sock_blocking(php_socket_t socketd, int block);
+PHPAPI int php_copy_file(const char *src, const char *dest);
+PHPAPI int php_copy_file_ex(const char *src, const char *dest, int src_chk);
+PHPAPI int php_copy_file_ctx(const char *src, const char *dest, int src_chk, php_stream_context *ctx);
+PHPAPI int php_mkdir_ex(const char *dir, zend_long mode, int options);
+PHPAPI int php_mkdir(const char *dir, zend_long mode);
+
+#define PHP_CSV_NO_ESCAPE EOF
+PHPAPI void php_fgetcsv(php_stream *stream, char delimiter, char enclosure, int escape_char, size_t buf_len, char *buf, zval *return_value);
+PHPAPI size_t php_fputcsv(php_stream *stream, zval *fields, char delimiter, char enclosure, int escape_char);
 
 #define META_DEF_BUFSIZE 8192
 
@@ -112,7 +111,7 @@ typedef struct _php_meta_tags_data {
 	int in_meta;
 } php_meta_tags_data;
 
-php_meta_tags_token php_next_meta_token(php_meta_tags_data * TSRMLS_DC);
+php_meta_tags_token php_next_meta_token(php_meta_tags_data *);
 
 typedef struct {
 	int pclose_ret;
@@ -127,10 +126,15 @@ typedef struct {
 	HashTable *stream_filters;			/* per-request copy of stream_filters_hash */
 	HashTable *wrapper_errors;			/* key: wrapper address; value: linked list of char* */
 	int pclose_wait;
+#if defined(HAVE_GETHOSTBYNAME_R)
+	struct hostent tmp_host_info;
+	char *tmp_host_buf;
+	size_t tmp_host_buf_len;
+#endif
 } php_file_globals;
 
 #ifdef ZTS
-#define FG(v) TSRMG(file_globals_id, php_file_globals *, v)
+#define FG(v) ZEND_TSRMG(file_globals_id, php_file_globals *, v)
 extern PHPAPI int file_globals_id;
 #else
 #define FG(v) (file_globals.v)
@@ -139,4 +143,3 @@ extern PHPAPI php_file_globals file_globals;
 
 
 #endif /* FILE_H */
-

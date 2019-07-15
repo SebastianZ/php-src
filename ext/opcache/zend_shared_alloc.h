@@ -2,7 +2,7 @@
    +----------------------------------------------------------------------+
    | Zend OPcache                                                         |
    +----------------------------------------------------------------------+
-   | Copyright (c) 1998-2014 The PHP Group                                |
+   | Copyright (c) The PHP Group                                          |
    +----------------------------------------------------------------------+
    | This source file is subject to version 3.01 of the PHP license,      |
    | that is bundled with this package in the file LICENSE, and is        |
@@ -12,10 +12,10 @@
    | obtain it through the world-wide-web, please send a note to          |
    | license@php.net so we can mail you a copy immediately.               |
    +----------------------------------------------------------------------+
-   | Authors: Andi Gutmans <andi@zend.com>                                |
-   |          Zeev Suraski <zeev@zend.com>                                |
+   | Authors: Andi Gutmans <andi@php.net>                                 |
+   |          Zeev Suraski <zeev@php.net>                                 |
    |          Stanislav Malyshev <stas@zend.com>                          |
-   |          Dmitry Stogov <dmitry@zend.com>                             |
+   |          Dmitry Stogov <dmitry@php.net>                              |
    +----------------------------------------------------------------------+
 */
 
@@ -33,6 +33,9 @@
 #  define USE_MMAP      1
 # endif
 #elif defined(__linux__) || defined(_AIX)
+# ifdef HAVE_SHM_MMAP_POSIX
+#  define USE_SHM_OPEN  1
+# endif
 # ifdef HAVE_SHM_IPC
 #  define USE_SHM       1
 # endif
@@ -68,9 +71,11 @@
 #define FAILED_REATTACHED       2
 #define SUCCESSFULLY_REATTACHED 4
 #define ALLOC_FAIL_MAPPING      8
+#define ALLOC_FALLBACK          9
 
 typedef struct _zend_shared_segment {
     size_t  size;
+    size_t  end;
     size_t  pos;  /* position for simple stack allocator */
     void   *p;
 } zend_shared_segment;
@@ -91,7 +96,7 @@ typedef struct _handler_entry {
 
 typedef struct _zend_shared_memory_state {
 	int *positions;   /* current positions for each segment */
-	int  shared_free; /* amount of free shared memory */
+	size_t shared_free; /* amount of free shared memory */
 } zend_shared_memory_state;
 
 typedef struct _zend_smm_shared_globals {
@@ -102,13 +107,16 @@ typedef struct _zend_smm_shared_globals {
     /* Amount of free shared memory */
     size_t                     shared_free;
     /* Amount of shared memory allocated by garbage */
-    int                        wasted_shared_memory;
+    size_t                     wasted_shared_memory;
     /* No more shared memory flag */
     zend_bool                  memory_exhausted;
     /* Saved Shared Allocator State */
     zend_shared_memory_state   shared_memory_state;
 	/* Pointer to the application's shared data structures */
 	void                      *app_shared_globals;
+	/* Reserved shared memory */
+	void                      *reserved;
+	size_t                     reserved_size;
 } zend_smm_shared_globals;
 
 extern zend_smm_shared_globals *smm_shared_globals;
@@ -117,15 +125,26 @@ extern zend_smm_shared_globals *smm_shared_globals;
 
 #define SHARED_ALLOC_REATTACHED		(SUCCESS+1)
 
-int zend_shared_alloc_startup(size_t requested_size);
+int zend_shared_alloc_startup(size_t requested_size, size_t reserved_size);
 void zend_shared_alloc_shutdown(void);
 
 /* allocate shared memory block */
+void *zend_shared_alloc_pages(size_t requested_size);
 void *zend_shared_alloc(size_t size);
 
 /* copy into shared memory */
-void *_zend_shared_memdup(void *p, size_t size, zend_bool free_source TSRMLS_DC);
+void *zend_shared_memdup_get_put_free(void *source, size_t size);
+void *zend_shared_memdup_put_free(void *source, size_t size);
+void *zend_shared_memdup_free(void *source, size_t size);
+void *zend_shared_memdup_get_put(void *source, size_t size);
+void *zend_shared_memdup_put(void *source, size_t size);
+void *zend_shared_memdup(void *source, size_t size);
+void *zend_shared_memdup_arena_put(void *source, size_t size);
+void *zend_shared_memdup_arena(void *source, size_t size);
+
 int  zend_shared_memdup_size(void *p, size_t size);
+
+int zend_accel_in_shm(void *ptr);
 
 typedef union _align_test {
 	void   *ptr;
@@ -134,21 +153,25 @@ typedef union _align_test {
 } align_test;
 
 #if ZEND_GCC_VERSION >= 2000
-# define PLATFORM_ALIGNMENT (__alignof__ (align_test))
+# define PLATFORM_ALIGNMENT (__alignof__(align_test) < 8 ? 8 : __alignof__(align_test))
 #else
 # define PLATFORM_ALIGNMENT (sizeof(align_test))
 #endif
 
 #define ZEND_ALIGNED_SIZE(size) \
-	((size + PLATFORM_ALIGNMENT - 1) & ~(PLATFORM_ALIGNMENT - 1))
+	ZEND_MM_ALIGNED_SIZE_EX(size, PLATFORM_ALIGNMENT)
 
 /* exclusive locking */
-void zend_shared_alloc_lock(TSRMLS_D);
-void zend_shared_alloc_unlock(TSRMLS_D); /* returns the allocated size during lock..unlock */
-void zend_shared_alloc_safe_unlock(TSRMLS_D);
+void zend_shared_alloc_lock(void);
+void zend_shared_alloc_unlock(void); /* returns the allocated size during lock..unlock */
+void zend_shared_alloc_safe_unlock(void);
 
 /* old/new mapping functions */
+void zend_shared_alloc_init_xlat_table(void);
+void zend_shared_alloc_destroy_xlat_table(void);
 void zend_shared_alloc_clear_xlat_table(void);
+uint32_t zend_shared_alloc_checkpoint_xlat_table(void);
+void zend_shared_alloc_restore_xlat_table(uint32_t checkpoint);
 void zend_shared_alloc_register_xlat_entry(const void *old, const void *new);
 void *zend_shared_alloc_get_xlat_entry(const void *old);
 
@@ -158,7 +181,7 @@ void zend_shared_alloc_restore_state(void);
 const char *zend_accel_get_shared_model(void);
 
 /* memory write protection */
-void zend_accel_shared_protect(int mode TSRMLS_DC);
+void zend_accel_shared_protect(int mode);
 
 #ifdef USE_MMAP
 extern zend_shared_memory_handlers zend_alloc_mmap_handlers;

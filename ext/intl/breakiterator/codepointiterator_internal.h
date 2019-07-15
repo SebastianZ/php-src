@@ -18,15 +18,18 @@
 #define CODEPOINTITERATOR_INTERNAL_H
 
 #include <unicode/brkiter.h>
+#include <unicode/unistr.h>
 
-using U_ICU_NAMESPACE::BreakIterator;
+using icu::BreakIterator;
+using icu::CharacterIterator;
+using icu::UnicodeString;
 
 namespace PHP {
 
 	class CodePointBreakIterator : public BreakIterator {
 
 	public:
-		static UClassID getStaticClassID(); 
+		static UClassID getStaticClassID();
 
 		CodePointBreakIterator();
 

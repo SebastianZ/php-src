@@ -35,13 +35,16 @@ var_dump($a, $b, $c);
 
 ?>
 --EXPECTF--
-string(1) "f"
-string(1) "o"
-string(1) "o"
+NULL
+NULL
+NULL
 ----
 NULL
 NULL
 NULL
 ----
 
-Fatal error: Cannot use object of type stdClass as array in %s on line %d
+Fatal error: Uncaught Error: Cannot use object of type stdClass as array in %s:%d
+Stack trace:
+#0 {main}
+  thrown in %s on line %d

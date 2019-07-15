@@ -1,5 +1,5 @@
 --TEST--
-PDO Common: Bug #39656 (Crash when calling fetch() on a PDO statment object after closeCursor())
+PDO Common: Bug #39656 (Crash when calling fetch() on a PDO statement object after closeCursor())
 --SKIPIF--
 <?php
 if (!extension_loaded('pdo')) die('skip');
@@ -11,7 +11,7 @@ PDOTest::skip();
 --FILE--
 <?php
 
-if (getenv('REDIR_TEST_DIR') === false) putenv('REDIR_TEST_DIR='.dirname(__FILE__) . '/../../pdo/tests/');
+if (getenv('REDIR_TEST_DIR') === false) putenv('REDIR_TEST_DIR='.__DIR__ . '/../../pdo/tests/');
 require_once getenv('REDIR_TEST_DIR') . 'pdo_test.inc';
 $db = PDOTest::factory();
 
@@ -48,4 +48,3 @@ array(4) {
 }
 bool(false)
 Done
-

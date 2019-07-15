@@ -47,7 +47,7 @@
  *
  * CALENDAR OVERVIEW
  *
- *     Julias Ceasar created the calendar in 46 B.C. as a modified form of
+ *     Julius Caesar created the calendar in 46 B.C. as a modified form of
  *     the old Roman republican calendar which was based on lunar cycles.
  *     The new Julian calendar set fixed lengths for the months, abandoning
  *     the lunar cycle.  It also specified that there would be exactly 12
@@ -217,7 +217,7 @@ zend_long JulianToSdn(
 						int inputMonth,
 						int inputDay)
 {
-	int year;
+	zend_long year;
 	int month;
 
 	/* check for invalid dates */
@@ -252,12 +252,3 @@ zend_long JulianToSdn(
 			+ inputDay
 			- JULIAN_SDN_OFFSET);
 }
-
-/*
- * Local variables:
- * tab-width: 4
- * c-basic-offset: 4
- * End:
- * vim600: sw=4 ts=4 fdm=marker
- * vim<600: sw=4 ts=4
- */

@@ -1,4 +1,4 @@
-/* -*- mode: c; c-file-style: "k&r" -*-
+/*
 
   Modified for PHP by Andrei Zmievski <andrei@ispi.net>
 
@@ -24,22 +24,11 @@
 
 #include <ctype.h>
 #include <string.h>
-#include <assert.h>
 #include <stdio.h>
 
 #include "php.h"
 #include "php_string.h"
 
-#if defined(__GNUC__)
-#  define UNUSED __attribute__((__unused__))
-#else
-#  define UNUSED
-#endif
-
-#if 0
-static char const *version UNUSED =
-    "$Id$";
-#endif
 /* {{{ compare_right
  */
 static int
@@ -92,7 +81,7 @@ compare_left(char const **a, char const *aend, char const **b, char const *bend)
 		 else if (**a > **b)
 			 return +1;
      }
-	  
+
      return 0;
 }
 /* }}} */
@@ -118,11 +107,11 @@ PHPAPI int strnatcmp_ex(char const *a, size_t a_len, char const *b, size_t b_len
 		ca = *ap; cb = *bp;
 
 		/* skip over leading zeros */
-		while (leading && ca == '0' && (ap+1 < aend) && isdigit(*(ap+1))) {
+		while (leading && ca == '0' && (ap+1 < aend) && isdigit((int)(unsigned char)*(ap+1))) {
 			ca = *++ap;
 		}
 
-		while (leading && cb == '0' && (bp+1 < bend) && isdigit(*(bp+1))) {
+		while (leading && cb == '0' && (bp+1 < bend) && isdigit((int)(unsigned char)*(bp+1))) {
 			cb = *++bp;
 		}
 
@@ -151,6 +140,10 @@ PHPAPI int strnatcmp_ex(char const *a, size_t a_len, char const *b, size_t b_len
 			else if (ap == aend && bp == bend)
 				/* End of the strings. Let caller sort them out. */
 				return 0;
+			else if (ap == aend)
+				return -1;
+			else if (bp == bend)
+				return 1;
 			else {
 				/* Keep on comparing from the current point. */
 				ca = *ap; cb = *bp;
@@ -179,12 +172,3 @@ PHPAPI int strnatcmp_ex(char const *a, size_t a_len, char const *b, size_t b_len
 	}
 }
 /* }}} */
-
-/*
- * Local variables:
- * tab-width: 4
- * c-basic-offset: 4
- * End:
- * vim600: sw=4 ts=4 fdm=marker
- * vim<600: sw=4 ts=4
- */

@@ -7,8 +7,8 @@ date_default_timezone_set('UTC');
   var_dump($timezone_abbreviations["utc"]);
   echo "Done\n";
 ?>
---EXPECTF--
-array(6) {
+--EXPECT--
+array(5) {
   [0]=>
   array(3) {
     ["dst"]=>
@@ -43,18 +43,9 @@ array(6) {
     ["offset"]=>
     int(0)
     ["timezone_id"]=>
-    string(3) "GMT"
-  }
-  [4]=>
-  array(3) {
-    ["dst"]=>
-    bool(false)
-    ["offset"]=>
-    int(0)
-    ["timezone_id"]=>
     string(3) "UTC"
   }
-  [5]=>
+  [4]=>
   array(3) {
     ["dst"]=>
     bool(false)

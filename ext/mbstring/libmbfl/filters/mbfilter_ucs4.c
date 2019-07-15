@@ -5,7 +5,7 @@
  * LICENSE NOTICES
  *
  * This file is part of "streamable kanji code filter and converter",
- * which is distributed under the terms of GNU Lesser General Public 
+ * which is distributed under the terms of GNU Lesser General Public
  * License (version 2) as published by the Free Software Foundation.
  *
  * This software is distributed in the hope that it will be useful,
@@ -24,7 +24,7 @@
 /*
  * The source code included in this files was separated from mbfilter.c
  * by moriyoshi koizumi <moriyoshi@php.net> on 4 dec 2002.
- * 
+ *
  */
 
 #ifdef HAVE_CONFIG_H
@@ -42,7 +42,9 @@ const mbfl_encoding mbfl_encoding_ucs4 = {
 	"UCS-4",
 	(const char *(*)[])&mbfl_encoding_ucs4_aliases,
 	NULL,
-	MBFL_ENCTYPE_WCS4BE
+	MBFL_ENCTYPE_WCS4BE,
+	&vtbl_ucs4_wchar,
+	&vtbl_wchar_ucs4
 };
 
 const mbfl_encoding mbfl_encoding_ucs4be = {
@@ -51,7 +53,9 @@ const mbfl_encoding mbfl_encoding_ucs4be = {
 	"UCS-4BE",
 	NULL,
 	NULL,
-	MBFL_ENCTYPE_WCS4BE
+	MBFL_ENCTYPE_WCS4BE,
+	&vtbl_ucs4be_wchar,
+	&vtbl_wchar_ucs4be
 };
 
 const mbfl_encoding mbfl_encoding_ucs4le = {
@@ -60,7 +64,9 @@ const mbfl_encoding mbfl_encoding_ucs4le = {
 	"UCS-4LE",
 	NULL,
 	NULL,
-	MBFL_ENCTYPE_WCS4LE
+	MBFL_ENCTYPE_WCS4LE,
+	&vtbl_ucs4le_wchar,
+	&vtbl_wchar_ucs4le
 };
 
 const struct mbfl_convert_vtbl vtbl_ucs4_wchar = {
@@ -271,5 +277,3 @@ int mbfl_filt_conv_wchar_ucs4le(int c, mbfl_convert_filter *filter)
 
 	return c;
 }
-
-

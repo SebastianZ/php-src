@@ -5,7 +5,7 @@ Bug #50006 (Segfault caused by uksort()) - uasort variant
 
 $data = array(
     'bar-bazbazbaz.',
-    'bar-bazbazbaz-', 
+    'bar-bazbazbaz-',
     'foo'
 );
 uasort($data, 'magic_sort_cmp');
@@ -20,10 +20,10 @@ function magic_sort_cmp($a, $b) {
 }
 
 ?>
---EXPECTF--
+--EXPECT--
 Array
 (
     [2] => foo
-    [1] => bar-bazbazbaz-
     [0] => bar-bazbazbaz.
+    [1] => bar-bazbazbaz-
 )

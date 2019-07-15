@@ -2,12 +2,12 @@
 No router, no script
 --SKIPIF--
 <?php
-include "skipif.inc"; 
+include "skipif.inc";
 ?>
 --FILE--
 <?php
 include "php_cli_server.inc";
-php_cli_server_start(NULL, TRUE);
+php_cli_server_start(NULL, NULL);
 
 list($host, $port) = explode(':', PHP_CLI_SERVER_ADDRESS);
 $port = intval($port)?:80;
@@ -80,9 +80,9 @@ echo preg_replace("/<style>(.*?)<\/style>/s", "<style>AAA</style>", $output), "\
 fclose($fp);
 ?>
 --EXPECTF--
-
 HTTP/1.1 404 Not Found
 Host: %s
+Date: %s
 Connection: close
 Content-Type: text/html; charset=UTF-8
 Content-Length: %d
@@ -91,6 +91,7 @@ Content-Length: %d
 </head><body><h1>Not Found</h1><p>The requested resource <code class="url">/</code> was not found on this server.</p></body></html>
 HTTP/1.1 404 Not Found
 Host: %s
+Date: %s
 Connection: close
 Content-Type: text/html; charset=UTF-8
 Content-Length: %d
@@ -99,10 +100,10 @@ Content-Length: %d
 </head><body><h1>Not Found</h1><p>The requested resource <code class="url">/main/style.css</code> was not found on this server.</p></body></html>
 HTTP/1.1 404 Not Found
 Host: %s
+Date: %s
 Connection: close
 Content-Type: text/html; charset=UTF-8
 Content-Length: %d
 
 <!doctype html><html><head><title>404 Not Found</title><style>AAA</style>
 </head><body><h1>Not Found</h1><p>The requested resource <code class="url">/main/foo/bar</code> was not found on this server.</p></body></html>
-

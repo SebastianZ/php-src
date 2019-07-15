@@ -1,5 +1,3 @@
-
-	/* $Id: fpm_env.c,v 1.15 2008/09/18 23:19:59 anight Exp $ */
 	/* (c) 2007,2008 Andrei Nigmatulin */
 
 #include "fpm_config.h"
@@ -32,7 +30,7 @@ int setenv(char *name, char *value, int clobber) /* {{{ */
 	if (clobber == 0 && getenv(name) != 0) {
 		return 0;
 	}
-	
+
 	if ((cp = malloc(strlen(name) + strlen(value) + 2)) == 0) {
 		return 1;
 	}
@@ -106,11 +104,11 @@ static char * nvmatch(char *s1, char *s2) /* {{{ */
 {
 	while(*s1 == *s2++)
 	{
-		if(*s1++ == '=') { 
+		if(*s1++ == '=') {
 			return s2;
 		}
 	}
-	if(*s1 == '\0' && *(s2-1) == '=') { 
+	if(*s1 == '\0' && *(s2-1) == '=') {
 		return s2;
 	}
 	return NULL;
@@ -120,7 +118,9 @@ static char * nvmatch(char *s1, char *s2) /* {{{ */
 
 void fpm_env_setproctitle(char *title) /* {{{ */
 {
-#ifdef HAVE_SETPROCTITLE
+#if defined(HAVE_SETPROCTITLE_FAST)
+	setproctitle_fast("%s", title);
+#elif defined(HAVE_SETPROCTITLE)
 	setproctitle("%s", title);
 #else
 #ifdef __linux__
@@ -199,9 +199,6 @@ static int fpm_env_conf_wp(struct fpm_worker_pool_s *wp) /* {{{ */
 int fpm_env_init_main() /* {{{ */
 {
 	struct fpm_worker_pool_s *wp;
-	int i;
-	char *first = NULL;
-	char *last = NULL;
 	char *title;
 
 	for (wp = fpm_worker_all_pools; wp; wp = wp->next) {
@@ -211,8 +208,11 @@ int fpm_env_init_main() /* {{{ */
 	}
 #ifndef HAVE_SETPROCTITLE
 #ifdef __linux__
+	int i;
+	char *first = NULL;
+	char *last = NULL;
 	/*
-	 * This piece of code has been inspirated from nginx and pureftpd code, whic
+	 * This piece of code has been inspirated from nginx and pureftpd code, which
 	 * are under BSD licence.
 	 *
 	 * To change the process title in Linux we have to set argv[1] to NULL
@@ -270,9 +270,8 @@ int fpm_env_init_main() /* {{{ */
 #endif
 
 	spprintf(&title, 0, "master process (%s)", fpm_globals.config);
-	fpm_env_setproctitle(title); 
+	fpm_env_setproctitle(title);
 	efree(title);
 	return 0;
 }
 /* }}} */
-

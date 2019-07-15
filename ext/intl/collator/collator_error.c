@@ -33,12 +33,9 @@ PHP_FUNCTION( collator_get_error_code )
 	COLLATOR_METHOD_INIT_VARS
 
 	/* Parse parameters. */
-	if( zend_parse_method_parameters( ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O",
+	if( zend_parse_method_parameters( ZEND_NUM_ARGS(), getThis(), "O",
 		&object, Collator_ce_ptr ) == FAILURE )
 	{
-		intl_error_set( NULL, U_ILLEGAL_ARGUMENT_ERROR,
-			"collator_get_error_code: unable to parse input params", 0 TSRMLS_CC );
-
 		RETURN_FALSE;
 	}
 
@@ -64,12 +61,9 @@ PHP_FUNCTION( collator_get_error_message )
 	COLLATOR_METHOD_INIT_VARS
 
 	/* Parse parameters. */
-	if( zend_parse_method_parameters( ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O",
+	if( zend_parse_method_parameters( ZEND_NUM_ARGS(), getThis(), "O",
 		&object, Collator_ce_ptr ) == FAILURE )
 	{
-		intl_error_set( NULL, U_ILLEGAL_ARGUMENT_ERROR,
-			"collator_get_error_message: unable to parse input params", 0 TSRMLS_CC );
-
 		RETURN_FALSE;
 	}
 
@@ -79,16 +73,7 @@ PHP_FUNCTION( collator_get_error_message )
 		RETURN_FALSE;
 
 	/* Return last error message. */
-	message = intl_error_get_message( COLLATOR_ERROR_P( co ) TSRMLS_CC );
+	message = intl_error_get_message( COLLATOR_ERROR_P( co ) );
 	RETURN_STR(message);
 }
 /* }}} */
-
-/*
- * Local variables:
- * tab-width: 4
- * c-basic-offset: 4
- * End:
- * vim600: noet sw=4 ts=4 fdm=marker
- * vim<600: noet sw=4 ts=4
- */

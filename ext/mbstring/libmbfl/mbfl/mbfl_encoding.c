@@ -5,7 +5,7 @@
  * LICENSE NOTICES
  *
  * This file is part of "streamable kanji code filter and converter",
- * which is distributed under the terms of GNU Lesser General Public 
+ * which is distributed under the terms of GNU Lesser General Public
  * License (version 2) as published by the Free Software Foundation.
  *
  * This software is distributed in the hope that it will be useful,
@@ -32,13 +32,8 @@
 #include "config.h"
 #endif
 
-#ifdef HAVE_STDDEF_H
 #include <stddef.h>
-#endif
-
-#ifdef HAVE_STRING_H
 #include <string.h>
-#endif
 
 #ifdef HAVE_STRINGS_H
 #include <strings.h>
@@ -116,23 +111,11 @@
 #ifdef HAVE_STRICMP
 #define strcasecmp stricmp
 #endif
-#endif 
+#endif
 
-
-static const char *mbfl_encoding_auto_aliases[] = {"unknown", NULL};
-
-static const mbfl_encoding mbfl_encoding_auto = {
-	mbfl_no_encoding_auto,
-	"auto",
-	NULL,
-	(const char *(*)[])&mbfl_encoding_auto_aliases,
-	NULL,
-	0
-};
 
 static const mbfl_encoding *mbfl_encoding_ptr_list[] = {
 	&mbfl_encoding_pass,
-	&mbfl_encoding_auto,
 	&mbfl_encoding_wchar,
 	&mbfl_encoding_byte2be,
 	&mbfl_encoding_byte2le,

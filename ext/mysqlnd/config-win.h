@@ -1,4 +1,4 @@
-/* Copyright Abandoned 1996 TCX DataKonsult AB & Monty Program KB & Detron HB 
+/* Copyright Abandoned 1996 TCX DataKonsult AB & Monty Program KB & Detron HB
 This file is public domain and comes with NO WARRANTY of any kind */
 
 /* Defines for Win32 to make it compatible for MySQL */
@@ -55,7 +55,6 @@ This file is public domain and comes with NO WARRANTY of any kind */
 
 /* Type information */
 
-#define SIZEOF_CHAR		1
 #define SIZEOF_LONG		4
 #define SIZEOF_LONG_LONG	8
 
@@ -104,12 +103,3 @@ This file is public domain and comes with NO WARRANTY of any kind */
 #endif /* _WIN64 */
 
 #endif /* _MYSQLND_CONFIG_WIN_H */
-
-/*
- * Local variables:
- * tab-width: 4
- * c-basic-offset: 4
- * End:
- * vim600: noet sw=4 ts=4 fdm=marker
- * vim<600: noet sw=4 ts=4
- */

@@ -1,5 +1,5 @@
 --TEST--
-Tries to create a SplFixedArray using the fromArray() function and a multi dimentional array.
+Tries to create a SplFixedArray using the fromArray() function and a multi dimensional array.
 --CREDITS--
 Philip Norton philipnorton42@gmail.com
 --FILE--
@@ -7,11 +7,11 @@ Philip Norton philipnorton42@gmail.com
 $array = SplFixedArray::fromArray(array(array('1')));
 var_dump($array);
 ?>
---EXPECTF--
+--EXPECT--
 object(SplFixedArray)#1 (1) {
   [0]=>
   array(1) {
     [0]=>
-    %string|unicode%(1) "1"
+    string(1) "1"
   }
 }

@@ -2,7 +2,7 @@
    +----------------------------------------------------------------------+
    | PHP Version 7                                                        |
    +----------------------------------------------------------------------+
-   | Copyright (c) 1997-2014 The PHP Group                                |
+   | Copyright (c) The PHP Group                                          |
    +----------------------------------------------------------------------+
    | This source file is subject to version 3.01 of the PHP license,      |
    | that is bundled with this package in the file LICENSE, and is        |
@@ -15,8 +15,6 @@
    | Author: Clayton Collie <clcollie@mindspring.com>                     |
    +----------------------------------------------------------------------+
 */
-
-/* $Id$ */
 
 /*
 	scanf.c --
@@ -70,9 +68,7 @@
 #include <ctype.h>
 #include "php.h"
 #include "php_variables.h"
-#ifdef HAVE_LOCALE_H
 #include <locale.h>
-#endif
 #include "zend_execute.h"
 #include "zend_operators.h"
 #include "zend_strtod.h"
@@ -316,7 +312,6 @@ PHPAPI int ValidateFormat(char *format, int numVars, int *totalSubs)
 	int staticAssign[STATIC_LIST_SIZE];
 	int *nassign = staticAssign;
 	int objIndex, xpgSize, nspace = STATIC_LIST_SIZE;
-	TSRMLS_FETCH();
 
 	/*
 	 * Initialize an array that records the number of times a variable
@@ -394,7 +389,7 @@ notXpg:
 		gotSequential = 1;
 		if (gotXpg) {
 mixedXPG:
-			php_error_docref(NULL TSRMLS_CC, E_WARNING, "%s", "cannot mix \"%\" and \"%n$\" conversion specifiers");
+			php_error_docref(NULL, E_WARNING, "%s", "cannot mix \"%\" and \"%n$\" conversion specifiers");
 			goto error;
 		}
 
@@ -445,7 +440,7 @@ xpgCheckDone:
 				/* problem - cc                                               */
 				/*
 				if (flags & SCAN_WIDTH) {
-					php_error_docref(NULL TSRMLS_CC, E_WARNING, "Field width may not be specified in %c conversion");
+					php_error_docref(NULL, E_WARNING, "Field width may not be specified in %c conversion");
 					goto error;
 				}
 				*/
@@ -476,11 +471,11 @@ xpgCheckDone:
 				}
 				break;
 badSet:
-				php_error_docref(NULL TSRMLS_CC, E_WARNING, "Unmatched [ in format string");
+				php_error_docref(NULL, E_WARNING, "Unmatched [ in format string");
 				goto error;
 
 			default: {
-				php_error_docref(NULL TSRMLS_CC, E_WARNING, "Bad scan conversion character \"%c\"", *ch);
+				php_error_docref(NULL, E_WARNING, "Bad scan conversion character \"%c\"", *ch);
 				goto error;
 			}
 		}
@@ -530,14 +525,14 @@ badSet:
 	}
 	for (i = 0; i < numVars; i++) {
 		if (nassign[i] > 1) {
-			php_error_docref(NULL TSRMLS_CC, E_WARNING, "%s", "Variable is assigned by multiple \"%n$\" conversion specifiers");
+			php_error_docref(NULL, E_WARNING, "%s", "Variable is assigned by multiple \"%n$\" conversion specifiers");
 			goto error;
 		} else if (!xpgSize && (nassign[i] == 0)) {
 			/*
 			 * If the space is empty, and xpgSize is 0 (means XPG wasn't
 			 * used, and/or numVars != 0), then too many vars were given
 			 */
-			php_error_docref(NULL TSRMLS_CC, E_WARNING, "Variable is not assigned by any conversion specifiers");
+			php_error_docref(NULL, E_WARNING, "Variable is not assigned by any conversion specifiers");
 			goto error;
 		}
 	}
@@ -549,9 +544,9 @@ badSet:
 
 badIndex:
 	if (gotXpg) {
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "%s", "\"%n$\" argument index out of range");
+		php_error_docref(NULL, E_WARNING, "%s", "\"%n$\" argument index out of range");
 	} else {
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Different numbers of variable names and field specifiers");
+		php_error_docref(NULL, E_WARNING, "Different numbers of variable names and field specifiers");
 	}
 
 error:
@@ -578,7 +573,7 @@ error:
 
 PHPAPI int php_sscanf_internal( char *string, char *format,
 				int argCount, zval *args,
-				int varStart, zval *return_value TSRMLS_DC)
+				int varStart, zval *return_value)
 {
 	int  numVars, nconversions, totalVars = -1;
 	int  i, result;
@@ -625,7 +620,7 @@ PHPAPI int php_sscanf_internal( char *string, char *format,
 	if (numVars) {
 		for (i = varStart;i < argCount;i++){
 			if ( ! Z_ISREF(args[ i ] ) ) {
-				php_error_docref(NULL TSRMLS_CC, E_WARNING, "Parameter %d must be passed by reference", i);
+				php_error_docref(NULL, E_WARNING, "Parameter %d must be passed by reference", i);
 				scan_set_error_return(numVars, return_value);
 				return SCAN_ERROR_VAR_PASSED_BYVAL;
 			}
@@ -742,9 +737,8 @@ literal:
 					if (numVars && objIndex >= argCount) {
 						break;
 					} else if (numVars) {
-						current = Z_REFVAL(args[objIndex++]);
-						zval_ptr_dtor(current);
-						ZVAL_LONG(current, (zend_long)(string - baseString) );
+						current = args + objIndex++;
+						ZEND_TRY_ASSIGN_REF_LONG(current, (zend_long) (string - baseString));
 					} else {
 						add_index_long(return_value, objIndex++, string - baseString);
 					}
@@ -861,9 +855,8 @@ literal:
 					if (numVars && objIndex >= argCount) {
 						break;
 					} else if (numVars) {
-						current = Z_REFVAL(args[objIndex++]);
-						zval_ptr_dtor(current);
-						ZVAL_STRINGL(current, string, end-string);
+						current = args + objIndex++;
+						ZEND_TRY_ASSIGN_REF_STRINGL(current, string, end - string);
 					} else {
 						add_index_stringl(return_value, objIndex++, string, end-string);
 					}
@@ -902,9 +895,8 @@ literal:
 					if (numVars && objIndex >= argCount) {
 						break;
 					} else if (numVars) {
-						current = Z_REFVAL(args[objIndex++]);
-						zval_ptr_dtor(current);
-						ZVAL_STRINGL(current, string, end-string);
+						current = args + objIndex++;
+						ZEND_TRY_ASSIGN_REF_STRINGL(current, string, end - string);
 					} else {
 						add_index_stringl(return_value, objIndex++, string, end-string);
 					}
@@ -922,7 +914,7 @@ literal:
 					if (numVars) {
 						char __buf[2];
 						__buf[0] = sch;
-						__buf[1] = '\0';;
+						__buf[1] = '\0';
 						current = args[objIndex++];
 						zval_dtor(*current);
 						ZVAL_STRINGL( *current, __buf, 1);
@@ -1055,10 +1047,9 @@ addToInt:
 						if (numVars && objIndex >= argCount) {
 							break;
 						} else if (numVars) {
-						  /* change passed value type to string */
-							current = Z_REFVAL(args[objIndex++]);
-							zval_ptr_dtor(current);
-							ZVAL_STRING(current, buf);
+							 /* change passed value type to string */
+							current = args + objIndex++;
+							ZEND_TRY_ASSIGN_REF_STRING(current, buf);
 						} else {
 							add_index_string(return_value, objIndex++, buf);
 						}
@@ -1066,9 +1057,8 @@ addToInt:
 						if (numVars && objIndex >= argCount) {
 							break;
 						} else if (numVars) {
-							current = Z_REFVAL(args[objIndex++]);
-							zval_ptr_dtor(current);
-							ZVAL_LONG(current, value);
+							current = args + objIndex++;
+							ZEND_TRY_ASSIGN_REF_LONG(current, value);
 						} else {
 							add_index_long(return_value, objIndex++, value);
 						}
@@ -1171,9 +1161,8 @@ addToFloat:
 					if (numVars && objIndex >= argCount) {
 						break;
 					} else if (numVars) {
-						current = Z_REFVAL(args[objIndex++]);
-						zval_ptr_dtor(current);
-						ZVAL_DOUBLE(current, dvalue);
+						current = args + objIndex++;
+						ZEND_TRY_ASSIGN_REF_DOUBLE(current, dvalue);
 					} else {
 						add_index_double(return_value, objIndex++, dvalue );
 					}
@@ -1190,8 +1179,8 @@ done:
 		scan_set_error_return( numVars, return_value );
 		result = SCAN_ERROR_EOF;
 	} else if (numVars) {
-		convert_to_long(return_value );
-		Z_LVAL_P(return_value) = nconversions;
+		zval_ptr_dtor(return_value );
+		ZVAL_LONG(return_value, nconversions);
 	} else if (nconversions < totalVars) {
 		/* TODO: not all elements converted. we need to prune the list - cc */
 	}
@@ -1210,12 +1199,3 @@ static inline void scan_set_error_return(int numVars, zval *return_value) /* {{{
 	}
 }
 /* }}} */
-
-/*
- * Local variables:
- * tab-width: 4
- * c-basic-offset: 4
- * End:
- * vim600: sw=4 ts=4 fdm=marker
- * vim<600: sw=4 ts=4
- */

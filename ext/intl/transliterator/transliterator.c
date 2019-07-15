@@ -36,8 +36,8 @@ void transliterator_register_constants( INIT_FUNC_ARGS )
 	}
 
 	#define TRANSLITERATOR_EXPOSE_CONST( x ) REGISTER_LONG_CONSTANT( #x, x, CONST_PERSISTENT | CONST_CS )
-	#define TRANSLITERATOR_EXPOSE_CLASS_CONST( x ) zend_declare_class_constant_long( Transliterator_ce_ptr, ZEND_STRS( #x ) - 1, TRANSLITERATOR_##x TSRMLS_CC );
-	#define TRANSLITERATOR_EXPOSE_CUSTOM_CLASS_CONST( name, value ) zend_declare_class_constant_long( Transliterator_ce_ptr, ZEND_STRS( name ) - 1, value TSRMLS_CC );*/
+	#define TRANSLITERATOR_EXPOSE_CLASS_CONST( x ) zend_declare_class_constant_long( Transliterator_ce_ptr, ZEND_STRS( #x ) - 1, TRANSLITERATOR_##x );
+	#define TRANSLITERATOR_EXPOSE_CUSTOM_CLASS_CONST( name, value ) zend_declare_class_constant_long( Transliterator_ce_ptr, ZEND_STRS( name ) - 1, value );*/
 
 	/* Normalization form constants */
 	TRANSLITERATOR_EXPOSE_CLASS_CONST( FORWARD );
@@ -48,12 +48,3 @@ void transliterator_register_constants( INIT_FUNC_ARGS )
 	#undef NORMALIZER_EXPOSE_CONST
 }
 /* }}} */
-
-/*
- * Local variables:
- * tab-width: 4
- * c-basic-offset: 4
- * End:
- * vim600: noet sw=4 ts=4 fdm=marker
- * vim<600: noet sw=4 ts=4
- */

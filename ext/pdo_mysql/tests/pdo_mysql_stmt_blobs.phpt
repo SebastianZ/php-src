@@ -2,13 +2,13 @@
 MySQL Prepared Statements and BLOBs
 --SKIPIF--
 <?php
-require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'skipif.inc');
-require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'mysql_pdo_test.inc');
+require_once(__DIR__ . DIRECTORY_SEPARATOR . 'skipif.inc');
+require_once(__DIR__ . DIRECTORY_SEPARATOR . 'mysql_pdo_test.inc');
 MySQLPDOTest::skip();
 ?>
 --FILE--
 <?php
-	require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'mysql_pdo_test.inc');
+	require_once(__DIR__ . DIRECTORY_SEPARATOR . 'mysql_pdo_test.inc');
 	$db = MySQLPDOTest::factory();
 
 	$blobs = array(
@@ -49,7 +49,7 @@ MySQLPDOTest::skip();
 		}
 
 		if ($label !== $value) {
-			printf("[%03d + 3] Returned value seems to be wrong (%d vs. %d charachters). Check manually\n",
+			printf("[%03d + 3] Returned value seems to be wrong (%d vs. %d characters). Check manually\n",
 				$offset, strlen($label), strlen($value));
 			return false;
 		}
@@ -64,7 +64,7 @@ MySQLPDOTest::skip();
 		$ret = $stmt->fetch(PDO::FETCH_ASSOC);
 
 		if ($ret['label'] !== $value) {
-			printf("[%03d + 3] Returned value seems to be wrong (%d vs. %d charachters). Check manually\n",
+			printf("[%03d + 3] Returned value seems to be wrong (%d vs. %d characters). Check manually\n",
 				$offset, strlen($ret['label']), strlen($value));
 			return false;
 		}
@@ -90,9 +90,9 @@ MySQLPDOTest::skip();
 ?>
 --CLEAN--
 <?php
-require dirname(__FILE__) . '/mysql_pdo_test.inc';
+require __DIR__ . '/mysql_pdo_test.inc';
 $db = MySQLPDOTest::factory();
 $db->exec('DROP TABLE IF EXISTS test');
 ?>
---EXPECTF--
+--EXPECT--
 done!

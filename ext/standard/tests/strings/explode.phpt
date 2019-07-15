@@ -2,6 +2,8 @@
 explode() function
 --INI--
 error_reporting=2047
+--SKIPIF--
+<?php if (PHP_INT_SIZE != 8) die("skip this test is for 64-bit only");
 --FILE--
 <?php
 /* From http://bugs.php.net/19865 */
@@ -14,7 +16,7 @@ var_dump(@explode(NULL, ""));
 var_dump(@explode("a", ""));
 var_dump(@explode("a", "a"));
 var_dump(@explode("a", NULL));
-var_dump(@explode(NULL, a));
+var_dump(@explode(NULL, "a"));
 var_dump(@explode("abc", "acb"));
 var_dump(@explode("somestring", "otherstring"));
 var_dump(@explode("somestring", "otherstring", -1));
@@ -30,7 +32,7 @@ var_dump(explode(":","a lazy dog:jumps:over:",-40000000000000));
 var_dump(explode(":^:","a lazy dog:^:jumps::over:^:",-1));
 var_dump(explode(":^:","a lazy dog:^:jumps::over:^:",-2));
 ?>
---EXPECTF--
+--EXPECT--
 array (
   0 => 'a',
   1 => 'b' . "\0" . 'd',

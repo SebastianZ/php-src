@@ -5,7 +5,7 @@
  * LICENSE NOTICES
  *
  * This file is part of "streamable kanji code filter and converter",
- * which is distributed under the terms of GNU Lesser General Public 
+ * which is distributed under the terms of GNU Lesser General Public
  * License (version 2) as published by the Free Software Foundation.
  *
  * This software is distributed in the hope that it will be useful,
@@ -24,7 +24,7 @@
 /*
  * The source code included in this files was separated from mbfilter_kr.c
  * by moriyoshi koizumi <moriyoshi@php.net> on 4 dec 2002.
- * 
+ *
  */
 
 #ifdef HAVE_CONFIG_H
@@ -43,7 +43,9 @@ const mbfl_encoding mbfl_encoding_2022kr = {
 	"ISO-2022-KR",
 	NULL,
 	NULL,
-	MBFL_ENCTYPE_MBCS | MBFL_ENCTYPE_SHFTCODE | MBFL_ENCTYPE_GL_UNSAFE
+	MBFL_ENCTYPE_MBCS | MBFL_ENCTYPE_SHFTCODE | MBFL_ENCTYPE_GL_UNSAFE,
+	&vtbl_2022kr_wchar,
+	&vtbl_wchar_2022kr
 };
 
 const struct mbfl_identify_vtbl vtbl_identify_2022kr = {
@@ -89,9 +91,9 @@ retry:
 		if (c == 0x1b) { /* ESC */
 			filter->status += 2;
 		} else if (c == 0x0f) { /* SI (ASCII) */
-			filter->status &= ~0xff; 
+			filter->status &= ~0xff;
 		} else if (c == 0x0e) { /* SO (KSC5601) */
-			filter->status |= 0x10; 
+			filter->status |= 0x10;
 		} else if ((filter->status & 0x10) != 0  && c > 0x20 && c < 0x7f) {
 			/* KSC5601 lead byte */
 			filter->cache = c;
@@ -131,7 +133,7 @@ retry:
 					w = 0;
 				}
 			}
-			
+
 			if (w <= 0) {
 				w = (c1 << 8) | c;
 				w &= MBFL_WCSPLANE_MASK;
@@ -218,7 +220,7 @@ mbfl_filt_conv_wchar_2022kr(int c, mbfl_convert_filter *filter)
 	c1 = (s >> 8) & 0xff;
 	c2 = s & 0xff;
 	/* exclude UHC extension area */
-	if (c1 < 0xa1 || c2 < 0xa1){ 
+	if (c1 < 0xa1 || c2 < 0xa1){
 		s = c;
 	}
 	if (s & 0x8000) {
@@ -355,5 +357,3 @@ retry:
 
 	return c;
 }
-
-

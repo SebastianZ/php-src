@@ -2,7 +2,7 @@
    +----------------------------------------------------------------------+
    | PHP Version 7                                                        |
    +----------------------------------------------------------------------+
-   | Copyright (c) 1997-2014 The PHP Group                                |
+   | Copyright (c) The PHP Group                                          |
    +----------------------------------------------------------------------+
    | This source file is subject to version 3.01 of the PHP license,      |
    | that is bundled with this package in the file LICENSE, and is        |
@@ -16,8 +16,6 @@
    |          Rob Richards <rrichards@php.net>                            |
    +----------------------------------------------------------------------+
 */
-
-/* $Id$ */
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -38,10 +36,10 @@ ZEND_END_ARG_INFO();
 /* }}} */
 
 /*
-* class domstringextend 
+* class domstringextend
 *
-* URL: http://www.w3.org/TR/2003/WD-DOM-Level-3-Core-20030226/DOM3-Core.html#i18n-methods-StringExtend
-* Since: 
+* URL: https://www.w3.org/TR/2003/WD-DOM-Level-3-Core-20030226/DOM3-Core.html#i18n-methods-StringExtend
+* Since:
 */
 
 const zend_function_entry php_dom_string_extend_class_functions[] = {
@@ -54,7 +52,7 @@ const zend_function_entry php_dom_string_extend_class_functions[] = {
 
 /* {{{ proto int dom_string_extend_find_offset16(int offset32);
 URL: http://www.w3.org/TR/2003/WD-DOM-Level-3-Core-20030226/DOM3-Core.html#i18n-methods-StringExtend-findOffset16
-Since: 
+Since:
 */
 PHP_FUNCTION(dom_string_extend_find_offset16)
 {
@@ -64,7 +62,7 @@ PHP_FUNCTION(dom_string_extend_find_offset16)
 
 /* {{{ proto int dom_string_extend_find_offset32(int offset16);
 URL: http://www.w3.org/TR/2003/WD-DOM-Level-3-Core-20030226/DOM3-Core.html#i18n-methods-StringExtend-findOffset32
-Since: 
+Since:
 */
 PHP_FUNCTION(dom_string_extend_find_offset32)
 {
@@ -75,12 +73,3 @@ PHP_FUNCTION(dom_string_extend_find_offset32)
 /* }}} */
 
 #endif
-
-/*
- * Local variables:
- * tab-width: 4
- * c-basic-offset: 4
- * End:
- * vim600: noet sw=4 ts=4 fdm=marker
- * vim<600: noet sw=4 ts=4
- */

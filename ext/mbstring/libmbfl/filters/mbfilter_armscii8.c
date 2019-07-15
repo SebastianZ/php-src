@@ -19,7 +19,7 @@
  * Suite 330, Boston, MA  02111-1307  USA
  *
  * The author of this file: Hayk Chamyan <hamshen@gmail.com>
- *  
+ *
  */
 
 /*
@@ -44,7 +44,9 @@ const mbfl_encoding mbfl_encoding_armscii8 = {
 	"ArmSCII-8",
 	(const char *(*)[])&mbfl_encoding_armscii8_aliases,
 	NULL,
-	MBFL_ENCTYPE_SBCS
+	MBFL_ENCTYPE_SBCS,
+	&vtbl_armscii8_wchar,
+	&vtbl_wchar_armscii8
 };
 
 const struct mbfl_identify_vtbl vtbl_identify_armscii8 = {

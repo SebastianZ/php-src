@@ -1,7 +1,8 @@
 --TEST--
 token_name()
 --SKIPIF--
-<?php if (!extension_loaded("tokenizer")) print "skip"; ?>
+<?php if (PHP_INT_SIZE != 8) die("skip this test is for 64-bit only");
+if (!extension_loaded("tokenizer")) print "skip"; ?>
 --FILE--
 <?php
 
@@ -125,12 +126,10 @@ echo token_name(T_HALT_COMPILER), "\n";
 
 echo token_name(-1), "\n";
 echo token_name(0x8000000F), "\n";
-echo token_name("string"), "\n";
-echo token_name(array()), "\n";
 
 echo "Done\n";
 ?>
---EXPECTF--	
+--EXPECTF--
 T_INCLUDE
 T_INCLUDE_ONCE
 T_EVAL
@@ -250,10 +249,4 @@ T_CLONE
 T_HALT_COMPILER
 UNKNOWN
 UNKNOWN
-
-Warning: token_name() expects parameter 1 to be long, string given in %s on line %d
-
-
-Warning: token_name() expects parameter 1 to be long, array given in %s on line %d
-
 Done

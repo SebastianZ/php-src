@@ -52,8 +52,8 @@ function fix_acls() {
 	   all the other users having acls on the files must loose them.
 	   The following fixes this just partially, as dynamically reading
 	   all the users having acls on a file could be sophisticated. */
-	exec(get_icacls() . ' . /setowner $user /T /L /Q 2> nul');
-	exec(get_icacls() . ' . /remove:g Administrators /T /L /Q 2> nul');
+	exec(get_icacls() . ' ' . __DIR__ . ' /setowner ' . escapeshellarg($user) . ' /T /L /Q /C > nul 2>&1');
+	exec(get_icacls() . ' ' . __DIR__ . ' /remove:g Administrators /T /L /Q /C > nul 2>&1');
 }
 
 function icacls_set($path, $mode, $perm) {
@@ -123,7 +123,7 @@ function icacls_set($path, $mode, $perm) {
 		exec($cmd);
 
 		$cmd = $icacls . ' ' . $path_escaped . ' /' . $mode . ' ' . $user;
-		$cmd .= ':' . '(' . implode($perm_entry, ',') . ')';
+		$cmd .= ':' . '(' . implode(',', $perm_entry) . ')';
 		exec($cmd);
 	}
 }

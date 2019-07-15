@@ -2,7 +2,7 @@
    +----------------------------------------------------------------------+
    | PHP Version 7                                                        |
    +----------------------------------------------------------------------+
-   | Copyright (c) 1997-2014 The PHP Group                                |
+   | Copyright (c) The PHP Group                                          |
    +----------------------------------------------------------------------+
    | This source file is subject to version 3.01 of the PHP license,      |
    | that is bundled with this package in the file LICENSE, and is        |
@@ -15,8 +15,6 @@
    | Author: Sascha Schumann <sascha@schumann.cx>                         |
    +----------------------------------------------------------------------+
  */
-
-/* $Id$ */
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -60,10 +58,9 @@ DBA_OPEN_FUNC(dbm)
 	int filemode = 0644;
 
 	if(info->argc > 0) {
-		convert_to_long_ex(&info->argv[0]);
-		filemode = Z_LVAL(info->argv[0]);
+		filemode = zval_get_long(&info->argv[0]);
 	}
-	
+
 	if(info->mode == DBA_TRUNC) {
 		char buf[MAXPATHLEN];
 
@@ -123,7 +120,7 @@ DBA_UPDATE_FUNC(dbm)
 
 	gval.dptr = (char *) val;
 	gval.dsize = vallen;
-	
+
 	return (store(gkey, gval) == -1 ? FAILURE : SUCCESS);
 }
 
@@ -131,7 +128,7 @@ DBA_EXISTS_FUNC(dbm)
 {
 	datum gval;
 	DBM_GKEY;
-	
+
 	gval = fetch(gkey);
 	if(gval.dptr) {
 		return SUCCESS;
@@ -166,9 +163,9 @@ DBA_NEXTKEY_FUNC(dbm)
 	DBM_DATA;
 	datum gkey;
 	char *nkey = NULL;
-	
+
 	if(!dba->nextkey.dptr) return NULL;
-	
+
 	gkey = nextkey(dba->nextkey);
 	if(gkey.dptr) {
 		if(newlen) *newlen = gkey.dsize;
@@ -195,19 +192,10 @@ DBA_INFO_FUNC(dbm)
 #if DBA_GDBM
 	if (!strcmp(DBM_VERSION, "GDBM"))
 	{
-		return dba_info_gdbm(hnd, info TSRMLS_CC);
+		return dba_info_gdbm(hnd, info);
 	}
 #endif
 	return estrdup(DBM_VERSION);
 }
 
 #endif
-
-/*
- * Local variables:
- * tab-width: 4
- * c-basic-offset: 4
- * End:
- * vim600: sw=4 ts=4 fdm=marker
- * vim<600: sw=4 ts=4
- */

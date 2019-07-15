@@ -1,5 +1,3 @@
-
-	/* $Id: fpm.c,v 1.23 2008/07/20 16:38:31 anight Exp $ */
 	/* (c) 2007,2008 Andrei Nigmatulin */
 
 #include "fpm_config.h"
@@ -24,7 +22,7 @@
 #include "zlog.h"
 
 struct fpm_globals_s fpm_globals = {
-	.parent_pid = 0, 
+	.parent_pid = 0,
 	.argc = 0,
 	.argv = NULL,
 	.config = NULL,
@@ -122,4 +120,3 @@ run_child: /* only workers reach this point */
 	return fpm_globals.listening_socket;
 }
 /* }}} */
-

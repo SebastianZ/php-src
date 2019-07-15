@@ -1,5 +1,3 @@
-
-	/* $Id: fpm_request.c,v 1.9.2.1 2008/11/15 00:57:24 anight Exp $ */
 	/* (c) 2007,2008 Andrei Nigmatulin */
 #ifdef HAVE_TIMES
 #include <sys/times.h>
@@ -18,6 +16,7 @@
 #include "fpm_children.h"
 #include "fpm_scoreboard.h"
 #include "fpm_status.h"
+#include "fpm_stdio.h"
 #include "fpm_request.h"
 #include "fpm_log.h"
 
@@ -26,7 +25,7 @@
 static const char *requests_stages[] = {
 	[FPM_REQUEST_ACCEPTING]       = "Idle",
 	[FPM_REQUEST_READING_HEADERS] = "Reading headers",
-	[FPM_REQUEST_INFO]            = "Getting request informations",
+	[FPM_REQUEST_INFO]            = "Getting request information",
 	[FPM_REQUEST_EXECUTING]       = "Running",
 	[FPM_REQUEST_END]             = "Ending",
 	[FPM_REQUEST_FINISHED]        = "Finishing",
@@ -92,7 +91,6 @@ void fpm_request_reading_headers() /* {{{ */
 	proc->request_method[0] = '\0';
 	proc->script_filename[0] = '\0';
 	proc->query_string[0] = '\0';
-	proc->query_string[0] = '\0';
 	proc->auth_user[0] = '\0';
 	proc->content_length = 0;
 	fpm_scoreboard_proc_release(proc);
@@ -104,14 +102,13 @@ void fpm_request_reading_headers() /* {{{ */
 
 void fpm_request_info() /* {{{ */
 {
-	TSRMLS_FETCH();
 	struct fpm_scoreboard_proc_s *proc;
-	char *request_uri = fpm_php_request_uri(TSRMLS_C);
-	char *request_method = fpm_php_request_method(TSRMLS_C);
-	char *script_filename = fpm_php_script_filename(TSRMLS_C);
-	char *query_string = fpm_php_query_string(TSRMLS_C);
-	char *auth_user = fpm_php_auth_user(TSRMLS_C);
-	size_t content_length = fpm_php_content_length(TSRMLS_C);
+	char *request_uri = fpm_php_request_uri();
+	char *request_method = fpm_php_request_method();
+	char *script_filename = fpm_php_script_filename();
+	char *query_string = fpm_php_query_string();
+	char *auth_user = fpm_php_auth_user();
+	size_t content_length = fpm_php_content_length();
 	struct timeval now;
 
 	fpm_clock_get(&now);
@@ -172,14 +169,14 @@ void fpm_request_executing() /* {{{ */
 }
 /* }}} */
 
-void fpm_request_end(TSRMLS_D) /* {{{ */
+void fpm_request_end(void) /* {{{ */
 {
 	struct fpm_scoreboard_proc_s *proc;
 	struct timeval now;
 #ifdef HAVE_TIMES
 	struct tms cpu;
 #endif
-	size_t memory = zend_memory_peak_usage(1 TSRMLS_CC);
+	size_t memory = zend_memory_peak_usage(1);
 
 	fpm_clock_get(&now);
 #ifdef HAVE_TIMES
@@ -203,6 +200,7 @@ void fpm_request_end(TSRMLS_D) /* {{{ */
 #endif
 	proc->memory = memory;
 	fpm_scoreboard_proc_release(proc);
+	fpm_stdio_flush_child();
 }
 /* }}} */
 
@@ -221,8 +219,6 @@ void fpm_request_finished() /* {{{ */
 
 	proc->request_stage = FPM_REQUEST_FINISHED;
 	proc->tv = now;
-	memset(&proc->accepted, 0, sizeof(proc->accepted));
-	proc->accepted_epoch = 0;
 	fpm_scoreboard_proc_release(proc);
 }
 /* }}} */
@@ -258,7 +254,7 @@ void fpm_request_check_timed_out(struct fpm_child_s *child, struct timeval *now,
 #if HAVE_FPM_TRACE
 		if (child->slow_logged.tv_sec == 0 && slowlog_timeout &&
 				proc.request_stage == FPM_REQUEST_EXECUTING && tv.tv_sec >= slowlog_timeout) {
-			
+
 			str_purify_filename(purified_script_filename, proc.script_filename, sizeof(proc.script_filename));
 
 			child->slow_logged = proc.accepted;
@@ -266,8 +262,9 @@ void fpm_request_check_timed_out(struct fpm_child_s *child, struct timeval *now,
 
 			fpm_trace_signal(child->pid);
 
-			zlog(ZLOG_WARNING, "[pool %s] child %d, script '%s' (request: \"%s %s\") executing too slow (%d.%06d sec), logging",
+			zlog(ZLOG_WARNING, "[pool %s] child %d, script '%s' (request: \"%s %s%s%s\") executing too slow (%d.%06d sec), logging",
 				child->wp->config->name, (int) child->pid, purified_script_filename, proc.request_method, proc.request_uri,
+				(proc.query_string[0] ? "?" : ""), proc.query_string,
 				(int) tv.tv_sec, (int) tv.tv_usec);
 		}
 		else
@@ -276,8 +273,9 @@ void fpm_request_check_timed_out(struct fpm_child_s *child, struct timeval *now,
 			str_purify_filename(purified_script_filename, proc.script_filename, sizeof(proc.script_filename));
 			fpm_pctl_kill(child->pid, FPM_PCTL_TERM);
 
-			zlog(ZLOG_WARNING, "[pool %s] child %d, script '%s' (request: \"%s %s\") execution timed out (%d.%06d sec), terminating",
+			zlog(ZLOG_WARNING, "[pool %s] child %d, script '%s' (request: \"%s %s%s%s\") execution timed out (%d.%06d sec), terminating",
 				child->wp->config->name, (int) child->pid, purified_script_filename, proc.request_method, proc.request_uri,
+				(proc.query_string[0] ? "?" : ""), proc.query_string,
 				(int) tv.tv_sec, (int) tv.tv_usec);
 		}
 	}

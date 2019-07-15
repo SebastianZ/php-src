@@ -14,7 +14,7 @@ function_exists('mb_strtolower') or die("skip mb_strtolower() is not available i
 
 /*
  * Pass a Japanese string and a mixed Japanese and ASCII string to mb_strtolower
- * to check correct conversion is occuring (Japanese characters should not be converted).
+ * to check correct conversion is occurring (Japanese characters should not be converted).
  */
 
 echo "*** Testing mb_strtolower() : usage variations ***\n";
@@ -43,8 +43,7 @@ if ($b == $string_all_mb) { // Japanese characters only - should not be any conv
 
 echo "Done";
 ?>
-
---EXPECTF--
+--EXPECT--
 *** Testing mb_strtolower() : usage variations ***
 
 -- Mixed string (mulitbyte and ASCII characters) --

@@ -2,7 +2,7 @@
    +----------------------------------------------------------------------+
    | PHP Version 7                                                        |
    +----------------------------------------------------------------------+
-   | Copyright (c) 1997-2014 The PHP Group                                |
+   | Copyright (c) The PHP Group                                          |
    +----------------------------------------------------------------------+
    | This source file is subject to version 3.01 of the PHP license,      |
    | that is bundled with this package in the file LICENSE, and is        |
@@ -18,8 +18,6 @@
    +----------------------------------------------------------------------+
  */
 
-/* $Id$ */
-
 /* {{{ includes */
 #include "php.h"
 #include "php_network.h"
@@ -33,7 +31,7 @@
 # include <winsock2.h>
 # include <windows.h>
 # include <Ws2tcpip.h>
-#else	/* This holds good for NetWare too, both for Winsock and Berkeley sockets */
+#else
 #include <netinet/in.h>
 #if HAVE_ARPA_INET_H
 #include <arpa/inet.h>
@@ -55,11 +53,6 @@
 #ifdef HAVE_DNS_H
 #include <dns.h>
 #endif
-#endif
-
-/* Borrowed from SYS/SOCKET.H */
-#if defined(NETWARE) && defined(USE_WINSOCK)
-#define AF_INET 2   /* internetwork: UDP, TCP, etc. */
 #endif
 
 #ifndef MAXHOSTNAMELEN
@@ -114,6 +107,9 @@
 #ifndef DNS_T_A6
 #define DNS_T_A6	38
 #endif
+#ifndef DNS_T_CAA
+#define DNS_T_CAA	257
+#endif
 
 #ifndef DNS_T_ANY
 #define DNS_T_ANY	255
@@ -124,18 +120,18 @@ static zend_string *php_gethostbyaddr(char *ip);
 static zend_string *php_gethostbyname(char *name);
 
 #ifdef HAVE_GETHOSTNAME
-/* {{{ proto string gethostname()
+/* {{{ proto string|false gethostname()
    Get the host name of the current machine */
 PHP_FUNCTION(gethostname)
 {
-	char buf[HOST_NAME_MAX];
+	char buf[HOST_NAME_MAX + 1];
 
 	if (zend_parse_parameters_none() == FAILURE) {
 		return;
 	}
 
-	if (gethostname(buf, sizeof(buf) - 1)) {
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "unable to fetch host [%d]: %s", errno, strerror(errno));
+	if (gethostname(buf, sizeof(buf))) {
+		php_error_docref(NULL, E_WARNING, "unable to fetch host [%d]: %s", errno, strerror(errno));
 		RETURN_FALSE;
 	}
 
@@ -148,7 +144,7 @@ PHP_FUNCTION(gethostname)
  we can have a dns.c, dns_unix.c and dns_win32.c instead of a messy dns.c full of #ifdef
 */
 
-/* {{{ proto string gethostbyaddr(string ip_address)
+/* {{{ proto string|false gethostbyaddr(string ip_address)
    Get the Internet host name corresponding to a given IP address */
 PHP_FUNCTION(gethostbyaddr)
 {
@@ -156,17 +152,17 @@ PHP_FUNCTION(gethostbyaddr)
 	size_t addr_len;
 	zend_string *hostname;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &addr, &addr_len) == FAILURE) {
-		return;
-	}
+	ZEND_PARSE_PARAMETERS_START(1, 1)
+		Z_PARAM_STRING(addr, addr_len)
+	ZEND_PARSE_PARAMETERS_END();
 
 	hostname = php_gethostbyaddr(addr);
 
 	if (hostname == NULL) {
 #if HAVE_IPV6 && HAVE_INET_PTON
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Address is not a valid IPv4 or IPv6 address");
+		php_error_docref(NULL, E_WARNING, "Address is not a valid IPv4 or IPv6 address");
 #else
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Address is not in a.b.c.d form");
+		php_error_docref(NULL, E_WARNING, "Address is not in a.b.c.d form");
 #endif
 		RETVAL_FALSE;
 	} else {
@@ -217,15 +213,21 @@ PHP_FUNCTION(gethostbyname)
 	char *hostname;
 	size_t hostname_len;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &hostname, &hostname_len) == FAILURE) {
-		return;
+	ZEND_PARSE_PARAMETERS_START(1, 1)
+		Z_PARAM_STRING(hostname, hostname_len)
+	ZEND_PARSE_PARAMETERS_END();
+
+	if(hostname_len > MAXFQDNLEN) {
+		/* name too long, protect from CVE-2015-0235 */
+		php_error_docref(NULL, E_WARNING, "Host name is too long, the limit is %d characters", MAXFQDNLEN);
+		RETURN_STRINGL(hostname, hostname_len);
 	}
 
 	RETURN_STR(php_gethostbyname(hostname));
 }
 /* }}} */
 
-/* {{{ proto array gethostbynamel(string hostname)
+/* {{{ proto array|false gethostbynamel(string hostname)
    Return a list of IP addresses that a given hostname resolves to. */
 PHP_FUNCTION(gethostbynamel)
 {
@@ -235,19 +237,32 @@ PHP_FUNCTION(gethostbynamel)
 	struct in_addr in;
 	int i;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &hostname, &hostname_len) == FAILURE) {
-		return;
+	ZEND_PARSE_PARAMETERS_START(1, 1)
+		Z_PARAM_STRING(hostname, hostname_len)
+	ZEND_PARSE_PARAMETERS_END();
+
+	if(hostname_len > MAXFQDNLEN) {
+		/* name too long, protect from CVE-2015-0235 */
+		php_error_docref(NULL, E_WARNING, "Host name is too long, the limit is %d characters", MAXFQDNLEN);
+		RETURN_FALSE;
 	}
 
-	hp = gethostbyname(hostname);
-	if (hp == NULL || hp->h_addr_list == NULL) {
+	hp = php_network_gethostbyname(hostname);
+	if (!hp) {
 		RETURN_FALSE;
 	}
 
 	array_init(return_value);
 
-	for (i = 0 ; hp->h_addr_list[i] != 0 ; i++) {
-		in = *(struct in_addr *) hp->h_addr_list[i];
+	for (i = 0;; i++) {
+		/* On macos h_addr_list entries may be misaligned. */
+		struct in_addr *h_addr_entry; /* Don't call this h_addr, it's a macro! */
+		memcpy(&h_addr_entry, &hp->h_addr_list[i], sizeof(struct in_addr *));
+		if (!h_addr_entry) {
+			return;
+		}
+
+		in = *h_addr_entry;
 		add_next_index_string(return_value, inet_ntoa(in));
 	}
 }
@@ -257,16 +272,22 @@ PHP_FUNCTION(gethostbynamel)
 static zend_string *php_gethostbyname(char *name)
 {
 	struct hostent *hp;
+	struct in_addr *h_addr_0; /* Don't call this h_addr, it's a macro! */
 	struct in_addr in;
 	char *address;
 
-	hp = gethostbyname(name);
-
-	if (!hp || !*(hp->h_addr_list)) {
+	hp = php_network_gethostbyname(name);
+	if (!hp) {
 		return zend_string_init(name, strlen(name), 0);
 	}
 
-	memcpy(&in.s_addr, *(hp->h_addr_list), sizeof(in.s_addr));
+	/* On macos h_addr_list entries may be misaligned. */
+	memcpy(&h_addr_0, &hp->h_addr_list[0], sizeof(struct in_addr *));
+	if (!h_addr_0) {
+		return zend_string_init(name, strlen(name), 0);
+	}
+
+	memcpy(&in.s_addr, h_addr_0, sizeof(in.s_addr));
 
 	address = inet_ntoa(in);
 	return zend_string_init(address, strlen(address), 0);
@@ -274,7 +295,7 @@ static zend_string *php_gethostbyname(char *name)
 /* }}} */
 
 #if HAVE_FULL_DNS_FUNCS || defined(PHP_WIN32)
-# define PHP_DNS_NUM_TYPES	12	/* Number of DNS Types Supported by PHP currently */
+# define PHP_DNS_NUM_TYPES	13	/* Number of DNS Types Supported by PHP currently */
 
 # define PHP_DNS_A      0x00000001
 # define PHP_DNS_NS     0x00000002
@@ -282,6 +303,7 @@ static zend_string *php_gethostbyname(char *name)
 # define PHP_DNS_SOA    0x00000020
 # define PHP_DNS_PTR    0x00000800
 # define PHP_DNS_HINFO  0x00001000
+# define PHP_DNS_CAA    0x00002000
 # define PHP_DNS_MX     0x00004000
 # define PHP_DNS_TXT    0x00008000
 # define PHP_DNS_A6     0x01000000
@@ -289,12 +311,12 @@ static zend_string *php_gethostbyname(char *name)
 # define PHP_DNS_NAPTR  0x04000000
 # define PHP_DNS_AAAA   0x08000000
 # define PHP_DNS_ANY    0x10000000
-# define PHP_DNS_ALL    (PHP_DNS_A|PHP_DNS_NS|PHP_DNS_CNAME|PHP_DNS_SOA|PHP_DNS_PTR|PHP_DNS_HINFO|PHP_DNS_MX|PHP_DNS_TXT|PHP_DNS_A6|PHP_DNS_SRV|PHP_DNS_NAPTR|PHP_DNS_AAAA)
+# define PHP_DNS_ALL    (PHP_DNS_A|PHP_DNS_NS|PHP_DNS_CNAME|PHP_DNS_SOA|PHP_DNS_PTR|PHP_DNS_HINFO|PHP_DNS_CAA|PHP_DNS_MX|PHP_DNS_TXT|PHP_DNS_A6|PHP_DNS_SRV|PHP_DNS_NAPTR|PHP_DNS_AAAA)
 #endif /* HAVE_FULL_DNS_FUNCS || defined(PHP_WIN32) */
 
 /* Note: These functions are defined in ext/standard/dns_win32.c for Windows! */
-#if !defined(PHP_WIN32) && (HAVE_DNS_SEARCH_FUNC && !(defined(__BEOS__) || defined(NETWARE)))
-  
+#if !defined(PHP_WIN32) && HAVE_DNS_SEARCH_FUNC
+
 #ifndef HFIXEDSZ
 #define HFIXEDSZ        12      /* fixed data in header <arpa/nameser.h> */
 #endif /* HFIXEDSZ */
@@ -323,12 +345,12 @@ typedef union {
 
 #if defined(__GLIBC__) && !defined(HAVE_DEPRECATED_DNS_FUNCS)
 #define php_dns_free_res(__res__) _php_dns_free_res(__res__)
-static void _php_dns_free_res(struct __res_state res) { /* {{{ */
+static void _php_dns_free_res(struct __res_state *res) { /* {{{ */
 	int ns;
 	for (ns = 0; ns < MAXNS; ns++) {
-		if (res._u._ext.nsaddrs[ns] != NULL) {
-			free (res._u._ext.nsaddrs[ns]);
-			res._u._ext.nsaddrs[ns] = NULL;
+		if (res->_u._ext.nsaddrs[ns] != NULL) {
+			free (res->_u._ext.nsaddrs[ns]);
+			res->_u._ext.nsaddrs[ns] = NULL;
 		}
 	}
 } /* }}} */
@@ -346,7 +368,7 @@ PHP_FUNCTION(dns_check_record)
 	u_char ans[MAXPACKET];
 	char *hostname, *rectype = NULL;
 	size_t hostname_len, rectype_len = 0;
-	int type = T_MX, i;
+	int type = DNS_T_MX, i;
 #if defined(HAVE_DNS_SEARCH)
 	struct sockaddr_storage from;
 	uint32_t fromsize = sizeof(from);
@@ -356,22 +378,25 @@ PHP_FUNCTION(dns_check_record)
 	struct __res_state *handle = &state;
 #endif
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|s", &hostname, &hostname_len, &rectype, &rectype_len) == FAILURE) {
-		return;
-	}
+	ZEND_PARSE_PARAMETERS_START(1, 2)
+		Z_PARAM_STRING(hostname, hostname_len)
+		Z_PARAM_OPTIONAL
+		Z_PARAM_STRING(rectype, rectype_len)
+	ZEND_PARSE_PARAMETERS_END();
 
 	if (hostname_len == 0) {
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Host cannot be empty");
+		php_error_docref(NULL, E_WARNING, "Host cannot be empty");
 		RETURN_FALSE;
 	}
 
 	if (rectype) {
-		if (!strcasecmp("A",     rectype)) type = T_A;
+		if (!strcasecmp("A",     rectype)) type = DNS_T_A;
 		else if (!strcasecmp("NS",    rectype)) type = DNS_T_NS;
 		else if (!strcasecmp("MX",    rectype)) type = DNS_T_MX;
 		else if (!strcasecmp("PTR",   rectype)) type = DNS_T_PTR;
 		else if (!strcasecmp("ANY",   rectype)) type = DNS_T_ANY;
 		else if (!strcasecmp("SOA",   rectype)) type = DNS_T_SOA;
+		else if (!strcasecmp("CAA",   rectype)) type = DNS_T_CAA;
 		else if (!strcasecmp("TXT",   rectype)) type = DNS_T_TXT;
 		else if (!strcasecmp("CNAME", rectype)) type = DNS_T_CNAME;
 		else if (!strcasecmp("AAAA",  rectype)) type = DNS_T_AAAA;
@@ -379,7 +404,7 @@ PHP_FUNCTION(dns_check_record)
 		else if (!strcasecmp("NAPTR", rectype)) type = DNS_T_NAPTR;
 		else if (!strcasecmp("A6",    rectype)) type = DNS_T_A6;
 		else {
-			php_error_docref(NULL TSRMLS_CC, E_WARNING, "Type '%s' not supported", rectype);
+			php_error_docref(NULL, E_WARNING, "Type '%s' not supported", rectype);
 			RETURN_FALSE;
 		}
 	}
@@ -442,7 +467,11 @@ static u_char *php_parserr(u_char *cp, u_char *end, querybuf *answer, int type_t
 	GETLONG(ttl, cp);
 	GETSHORT(dlen, cp);
 	CHECKCP(dlen);
-	if (type_to_fetch != T_ANY && type != type_to_fetch) {
+    if (dlen == 0) {
+        /* No data in the response - nothing to do */
+        return NULL;
+    }
+    if (type_to_fetch != DNS_T_ANY && type != type_to_fetch) {
 		cp += dlen;
 		return cp;
 	}
@@ -457,10 +486,11 @@ static u_char *php_parserr(u_char *cp, u_char *end, querybuf *answer, int type_t
 	add_assoc_string(subarray, "host", name);
 	add_assoc_string(subarray, "class", "IN");
 	add_assoc_long(subarray, "ttl", ttl);
+	(void) class;
 
 	if (raw) {
 		add_assoc_long(subarray, "type", type);
-		add_assoc_stringl(subarray, "data", (char*) cp, (uint) dlen);
+		add_assoc_stringl(subarray, "data", (char*) cp, (uint32_t) dlen);
 		cp += dlen;
 		return cp;
 	}
@@ -516,6 +546,29 @@ static u_char *php_parserr(u_char *cp, u_char *end, querybuf *answer, int type_t
 			add_assoc_stringl(subarray, "os", (char*)cp, n);
 			cp += n;
 			break;
+		case DNS_T_CAA:
+			/* See RFC 6844 for values https://tools.ietf.org/html/rfc6844 */
+			add_assoc_string(subarray, "type", "CAA");
+			// 1 flag byte
+			CHECKCP(1);
+			n = *cp & 0xFF;
+			add_assoc_long(subarray, "flags", n);
+			cp++;
+			// Tag length (1 byte)
+			CHECKCP(1);
+			n = *cp & 0xFF;
+			cp++;
+			CHECKCP(n);
+			add_assoc_stringl(subarray, "tag", (char*)cp, n);
+			cp += n;
+			if ( (size_t) dlen < ((size_t)n) + 2 ) {
+				return NULL;
+			}
+			n = dlen - n - 2;
+			CHECKCP(n);
+			add_assoc_stringl(subarray, "value", (char*)cp, n);
+			cp += n;
+			break;
 		case DNS_T_TXT:
 			{
 				int l1 = 0, l2 = 0;
@@ -524,9 +577,9 @@ static u_char *php_parserr(u_char *cp, u_char *end, querybuf *answer, int type_t
 
 				add_assoc_string(subarray, "type", "TXT");
 				tp = zend_string_alloc(dlen, 0);
-				
+
 				array_init(&entries);
-				
+
 				while (l1 < dlen) {
 					n = cp[l1];
 					if ((l1 + n) >= dlen) {
@@ -534,14 +587,14 @@ static u_char *php_parserr(u_char *cp, u_char *end, querybuf *answer, int type_t
 						n = dlen - (l1 + 1);
 					}
 					if (n) {
-						memcpy(tp->val + l2 , cp + l1 + 1, n);
-						add_next_index_stringl(&entries, cp + l1 + 1, n);
+						memcpy(ZSTR_VAL(tp) + l2 , cp + l1 + 1, n);
+						add_next_index_stringl(&entries, (char *) cp + l1 + 1, n);
 					}
 					l1 = l1 + n + 1;
 					l2 = l2 + n;
 				}
-				tp->val[l2] = '\0';
-				tp->len = l2;
+				ZSTR_VAL(tp)[l2] = '\0';
+				ZSTR_LEN(tp) = l2;
 				cp += dlen;
 
 				add_assoc_str(subarray, "txt", tp);
@@ -748,13 +801,13 @@ static u_char *php_parserr(u_char *cp, u_char *end, querybuf *answer, int type_t
 }
 /* }}} */
 
-/* {{{ proto array|false dns_get_record(string hostname [, int type[, array authns, array addtl]])
+/* {{{ proto array|false dns_get_record(string hostname [, int type[, array &authns[, array &addtl[, bool raw]]]])
    Get any Resource Record corresponding to a given Internet host name */
 PHP_FUNCTION(dns_get_record)
 {
 	char *hostname;
 	size_t hostname_len;
-	long type_param = PHP_DNS_ANY;
+	zend_long type_param = PHP_DNS_ANY;
 	zval *authns = NULL, *addtl = NULL;
 	int type_to_fetch;
 #if defined(HAVE_DNS_SEARCH)
@@ -772,29 +825,37 @@ PHP_FUNCTION(dns_get_record)
 	int type, first_query = 1, store_results = 1;
 	zend_bool raw = 0;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|lz!z!b",
-			&hostname, &hostname_len, &type_param, &authns, &addtl, &raw) == FAILURE) {
-		return;
-	}
+	ZEND_PARSE_PARAMETERS_START(1, 5)
+		Z_PARAM_STRING(hostname, hostname_len)
+		Z_PARAM_OPTIONAL
+		Z_PARAM_LONG(type_param)
+		Z_PARAM_ZVAL(authns)
+		Z_PARAM_ZVAL(addtl)
+		Z_PARAM_BOOL(raw)
+	ZEND_PARSE_PARAMETERS_END();
 
 	if (authns) {
-		zval_dtor(authns);
-		array_init(authns);
+		authns = zend_try_array_init(authns);
+		if (!authns) {
+			return;
+		}
 	}
 	if (addtl) {
-		zval_dtor(addtl);
-		array_init(addtl);
+		addtl = zend_try_array_init(addtl);
+		if (!addtl) {
+			return;
+		}
 	}
 
 	if (!raw) {
 		if ((type_param & ~PHP_DNS_ALL) && (type_param != PHP_DNS_ANY)) {
-			php_error_docref(NULL TSRMLS_CC, E_WARNING, "Type '%ld' not supported", type_param);
+			php_error_docref(NULL, E_WARNING, "Type '" ZEND_LONG_FMT "' not supported", type_param);
 			RETURN_FALSE;
 		}
 	} else {
 		if ((type_param < 1) || (type_param > 0xFFFF)) {
-			php_error_docref(NULL TSRMLS_CC, E_WARNING,
-				"Numeric DNS record type must be between 1 and 65535, '%ld' given", type_param);
+			php_error_docref(NULL, E_WARNING,
+				"Numeric DNS record type must be between 1 and 65535, '" ZEND_LONG_FMT "' given", type_param);
 			RETURN_FALSE;
 		}
 	}
@@ -866,6 +927,9 @@ PHP_FUNCTION(dns_get_record)
 			case 11:
 				type_to_fetch = type_param&PHP_DNS_A6	 ? DNS_T_A6 : 0;
 				break;
+			case 12:
+				type_to_fetch = type_param&PHP_DNS_CAA ? DNS_T_CAA : 0;
+				break;
 			case PHP_DNS_NUM_TYPES:
 				store_results = 0;
 				continue;
@@ -879,13 +943,13 @@ PHP_FUNCTION(dns_get_record)
 #if defined(HAVE_DNS_SEARCH)
 			handle = dns_open(NULL);
 			if (handle == NULL) {
-				zval_dtor(return_value);
+				zend_array_destroy(Z_ARR_P(return_value));
 				RETURN_FALSE;
 			}
 #elif defined(HAVE_RES_NSEARCH)
 		    memset(&state, 0, sizeof(state));
 		    if (res_ninit(handle)) {
-		    	zval_dtor(return_value);
+		    	zend_array_destroy(Z_ARR_P(return_value));
 				RETURN_FALSE;
 			}
 #else
@@ -896,7 +960,24 @@ PHP_FUNCTION(dns_get_record)
 
 			if (n < 0) {
 				php_dns_free_handle(handle);
-				continue;
+				switch (h_errno) {
+					case NO_DATA:
+					case HOST_NOT_FOUND:
+						continue;
+
+					case NO_RECOVERY:
+						php_error_docref(NULL, E_WARNING, "An unexpected server failure occurred.");
+						break;
+
+					case TRY_AGAIN:
+						php_error_docref(NULL, E_WARNING, "A temporary server error occurred.");
+						break;
+
+					default:
+						php_error_docref(NULL, E_WARNING, "DNS Query failed");
+				}
+				zend_array_destroy(Z_ARR_P(return_value));
+				RETURN_FALSE;
 			}
 
 			cp = answer.qb2 + HFIXEDSZ;
@@ -911,8 +992,8 @@ PHP_FUNCTION(dns_get_record)
 			while (qd-- > 0) {
 				n = dn_skipname(cp, end);
 				if (n < 0) {
-					php_error_docref(NULL TSRMLS_CC, E_WARNING, "Unable to parse DNS data received");
-					zval_dtor(return_value);
+					php_error_docref(NULL, E_WARNING, "Unable to parse DNS data received");
+					zend_array_destroy(Z_ARR_P(return_value));
 					php_dns_free_handle(handle);
 					RETURN_FALSE;
 				}
@@ -983,16 +1064,23 @@ PHP_FUNCTION(dns_get_mx)
 	struct __res_state *handle = &state;
 #endif
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sz/|z/", &hostname, &hostname_len, &mx_list, &weight_list) == FAILURE) {
+	ZEND_PARSE_PARAMETERS_START(2, 3)
+		Z_PARAM_STRING(hostname, hostname_len)
+		Z_PARAM_ZVAL(mx_list)
+		Z_PARAM_OPTIONAL
+		Z_PARAM_ZVAL(weight_list)
+	ZEND_PARSE_PARAMETERS_END();
+
+	mx_list = zend_try_array_init(mx_list);
+	if (!mx_list) {
 		return;
 	}
 
-	zval_dtor(mx_list);
-	array_init(mx_list);
-
 	if (weight_list) {
-		zval_dtor(weight_list);
-		array_init(weight_list);
+		weight_list = zend_try_array_init(weight_list);
+		if (!weight_list) {
+			return;
+		}
 	}
 
 #if defined(HAVE_DNS_SEARCH)
@@ -1055,7 +1143,7 @@ PHP_FUNCTION(dns_get_mx)
 }
 /* }}} */
 #endif /* HAVE_FULL_DNS_FUNCS */
-#endif /* !defined(PHP_WIN32) && (HAVE_DNS_SEARCH_FUNC && !(defined(__BEOS__) || defined(NETWARE))) */
+#endif /* !defined(PHP_WIN32) && HAVE_DNS_SEARCH_FUNC */
 
 #if HAVE_FULL_DNS_FUNCS || defined(PHP_WIN32)
 PHP_MINIT_FUNCTION(dns) {
@@ -1065,6 +1153,7 @@ PHP_MINIT_FUNCTION(dns) {
 	REGISTER_LONG_CONSTANT("DNS_SOA",   PHP_DNS_SOA,   CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("DNS_PTR",   PHP_DNS_PTR,   CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("DNS_HINFO", PHP_DNS_HINFO, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("DNS_CAA",   PHP_DNS_CAA,   CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("DNS_MX",    PHP_DNS_MX,    CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("DNS_TXT",   PHP_DNS_TXT,   CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("DNS_SRV",   PHP_DNS_SRV,   CONST_CS | CONST_PERSISTENT);
@@ -1076,12 +1165,3 @@ PHP_MINIT_FUNCTION(dns) {
 	return SUCCESS;
 }
 #endif /* HAVE_FULL_DNS_FUNCS */
-
-/*
- * Local variables:
- * tab-width: 4
- * c-basic-offset: 4
- * End:
- * vim600: sw=4 ts=4 fdm=marker
- * vim<600: sw=4 ts=4
- */

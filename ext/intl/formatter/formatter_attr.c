@@ -36,12 +36,9 @@ PHP_FUNCTION( numfmt_get_attribute )
 	FORMATTER_METHOD_INIT_VARS;
 
 	/* Parse parameters. */
-	if( zend_parse_method_parameters( ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Ol",
+	if( zend_parse_method_parameters( ZEND_NUM_ARGS(), getThis(), "Ol",
 		&object, NumberFormatter_ce_ptr, &attribute ) == FAILURE )
 	{
-		intl_error_set( NULL, U_ILLEGAL_ARGUMENT_ERROR,
-			"numfmt_get_attribute: unable to parse input params", 0 TSRMLS_CC );
-
 		RETURN_FALSE;
 	}
 
@@ -102,19 +99,16 @@ PHP_FUNCTION( numfmt_get_attribute )
 PHP_FUNCTION( numfmt_get_text_attribute )
 {
 	zend_long   attribute;
-	UChar  value_buf[64];
-	int    value_buf_size = USIZE( value_buf );
-	UChar* value  = value_buf;
-	int    length = 0;
+	UChar   value_buf[64];
+	int32_t value_buf_size = USIZE( value_buf );
+	UChar*  value  = value_buf;
+	int32_t length = 0;
 	FORMATTER_METHOD_INIT_VARS;
 
 	/* Parse parameters. */
-	if( zend_parse_method_parameters( ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Ol",
+	if( zend_parse_method_parameters( ZEND_NUM_ARGS(), getThis(), "Ol",
 		&object, NumberFormatter_ce_ptr, &attribute ) == FAILURE )
 	{
-		intl_error_set( NULL, U_ILLEGAL_ARGUMENT_ERROR,
-			"numfmt_get_text_attribute: unable to parse input params", 0 TSRMLS_CC );
-
 		RETURN_FALSE;
 	}
 
@@ -150,12 +144,9 @@ PHP_FUNCTION( numfmt_set_attribute )
 	FORMATTER_METHOD_INIT_VARS;
 
 	/* Parse parameters. */
-	if( zend_parse_method_parameters( ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Olz",
+	if( zend_parse_method_parameters( ZEND_NUM_ARGS(), getThis(), "Olz",
 		&object, NumberFormatter_ce_ptr, &attribute, &value ) == FAILURE)
 	{
-		intl_error_set( NULL, U_ILLEGAL_ARGUMENT_ERROR,
-			"numfmt_set_attribute: unable to parse input params", 0 TSRMLS_CC );
-
 		RETURN_FALSE;
 	}
 
@@ -182,12 +173,10 @@ PHP_FUNCTION( numfmt_set_attribute )
 		case UNUM_MIN_SIGNIFICANT_DIGITS:
 		case UNUM_MAX_SIGNIFICANT_DIGITS:
 		case UNUM_LENIENT_PARSE:
-			convert_to_long_ex(value);
-			unum_setAttribute(FORMATTER_OBJECT(nfo), attribute, Z_LVAL_P(value));
+			unum_setAttribute(FORMATTER_OBJECT(nfo), attribute, zval_get_long(value));
 			break;
 		case UNUM_ROUNDING_INCREMENT:
-			convert_to_double_ex(value);
-			unum_setDoubleAttribute(FORMATTER_OBJECT(nfo), attribute, Z_DVAL_P(value));
+			unum_setDoubleAttribute(FORMATTER_OBJECT(nfo), attribute, zval_get_double(value));
 			break;
 		default:
 			INTL_DATA_ERROR_CODE(nfo) = U_UNSUPPORTED_ERROR;
@@ -207,7 +196,7 @@ PHP_FUNCTION( numfmt_set_attribute )
  */
 PHP_FUNCTION( numfmt_set_text_attribute )
 {
-	int slength = 0;
+	int32_t slength = 0;
 	UChar *svalue = NULL;
 	zend_long attribute;
 	char *value;
@@ -215,12 +204,9 @@ PHP_FUNCTION( numfmt_set_text_attribute )
 	FORMATTER_METHOD_INIT_VARS;
 
 	/* Parse parameters. */
-	if( zend_parse_method_parameters( ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Ols",
+	if( zend_parse_method_parameters( ZEND_NUM_ARGS(), getThis(), "Ols",
 		&object, NumberFormatter_ce_ptr, &attribute, &value, &len ) == FAILURE)
 	{
-		intl_error_set( NULL, U_ILLEGAL_ARGUMENT_ERROR,
-			"numfmt_set_text_attribute: unable to parse input params", 0 TSRMLS_CC );
-
 		RETURN_FALSE;
 	}
 
@@ -252,21 +238,18 @@ PHP_FUNCTION( numfmt_get_symbol )
 	zend_long symbol;
 	UChar value_buf[4];
 	UChar *value = value_buf;
-	int length = USIZE(value_buf);
+	uint32_t length = USIZE(value_buf);
 	FORMATTER_METHOD_INIT_VARS;
 
 	/* Parse parameters. */
-	if( zend_parse_method_parameters( ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Ol",
+	if( zend_parse_method_parameters( ZEND_NUM_ARGS(), getThis(), "Ol",
 		&object, NumberFormatter_ce_ptr, &symbol ) == FAILURE )
 	{
-		intl_error_set( NULL, U_ILLEGAL_ARGUMENT_ERROR,
-			"numfmt_get_symbol: unable to parse input params", 0 TSRMLS_CC );
-
 		RETURN_FALSE;
 	}
-	
+
 	if(symbol >= UNUM_FORMAT_SYMBOL_COUNT || symbol < 0) {
-		intl_error_set( NULL, U_ILLEGAL_ARGUMENT_ERROR,	"numfmt_get_symbol: invalid symbol value", 0 TSRMLS_CC );
+		intl_error_set( NULL, U_ILLEGAL_ARGUMENT_ERROR,	"numfmt_get_symbol: invalid symbol value", 0 );
 		RETURN_FALSE;
 	}
 
@@ -297,25 +280,22 @@ PHP_FUNCTION( numfmt_get_symbol )
  */
 PHP_FUNCTION( numfmt_set_symbol )
 {
-	zend_long       symbol;
+	zend_long  symbol;
 	char*      value     = NULL;
-	size_t        value_len = 0;
+	size_t     value_len = 0;
 	UChar*     svalue  = 0;
-	int        slength = 0;
+	int32_t    slength = 0;
 	FORMATTER_METHOD_INIT_VARS;
 
 	/* Parse parameters. */
-	if( zend_parse_method_parameters( ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Ols",
+	if( zend_parse_method_parameters( ZEND_NUM_ARGS(), getThis(), "Ols",
 		&object, NumberFormatter_ce_ptr, &symbol, &value, &value_len ) == FAILURE )
 	{
-		intl_error_set( NULL, U_ILLEGAL_ARGUMENT_ERROR,
-			"numfmt_set_symbol: unable to parse input params", 0 TSRMLS_CC );
-
 		RETURN_FALSE;
 	}
-	
+
 	if (symbol >= UNUM_FORMAT_SYMBOL_COUNT || symbol < 0) {
-		intl_error_set( NULL, U_ILLEGAL_ARGUMENT_ERROR,	"numfmt_set_symbol: invalid symbol value", 0 TSRMLS_CC );
+		intl_error_set( NULL, U_ILLEGAL_ARGUMENT_ERROR,	"numfmt_set_symbol: invalid symbol value", 0 );
 		RETURN_FALSE;
 	}
 
@@ -344,18 +324,15 @@ PHP_FUNCTION( numfmt_set_symbol )
  */
 PHP_FUNCTION( numfmt_get_pattern )
 {
-	UChar  value_buf[64];
-	int    length = USIZE( value_buf );
-	UChar* value  = value_buf;
+	UChar   value_buf[64];
+	uint32_t length = USIZE( value_buf );
+	UChar*  value  = value_buf;
 	FORMATTER_METHOD_INIT_VARS;
 
 	/* Parse parameters. */
-	if( zend_parse_method_parameters( ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O",
+	if( zend_parse_method_parameters( ZEND_NUM_ARGS(), getThis(), "O",
 		&object, NumberFormatter_ce_ptr ) == FAILURE )
 	{
-		intl_error_set( NULL, U_ILLEGAL_ARGUMENT_ERROR,
-			"numfmt_get_pattern: unable to parse input params", 0 TSRMLS_CC );
-
 		RETURN_FALSE;
 	}
 
@@ -388,17 +365,14 @@ PHP_FUNCTION( numfmt_set_pattern )
 {
 	char*       value = NULL;
 	size_t      value_len = 0;
-	int         slength = 0;
+	int32_t     slength = 0;
 	UChar*	    svalue  = NULL;
 	FORMATTER_METHOD_INIT_VARS;
 
 	/* Parse parameters. */
-	if( zend_parse_method_parameters( ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Os",
+	if( zend_parse_method_parameters( ZEND_NUM_ARGS(), getThis(), "Os",
 		&object, NumberFormatter_ce_ptr, &value, &value_len ) == FAILURE )
 	{
-		intl_error_set( NULL, U_ILLEGAL_ARGUMENT_ERROR,
-			"numfmt_set_pattern: unable to parse input params", 0 TSRMLS_CC );
-
 		RETURN_FALSE;
 	}
 
@@ -431,12 +405,9 @@ PHP_FUNCTION( numfmt_get_locale )
 	FORMATTER_METHOD_INIT_VARS;
 
 	/* Parse parameters. */
-	if( zend_parse_method_parameters( ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O|l",
+	if( zend_parse_method_parameters( ZEND_NUM_ARGS(), getThis(), "O|l",
 		&object, NumberFormatter_ce_ptr, &type ) == FAILURE )
 	{
-		intl_error_set( NULL, U_ILLEGAL_ARGUMENT_ERROR,
-			"numfmt_get_locale: unable to parse input params", 0 TSRMLS_CC );
-
 		RETURN_FALSE;
 	}
 
@@ -448,12 +419,3 @@ PHP_FUNCTION( numfmt_get_locale )
 	RETURN_STRING(loc);
 }
 /* }}} */
-
-/*
- * Local variables:
- * tab-width: 4
- * c-basic-offset: 4
- * End:
- * vim600: noet sw=4 ts=4 fdm=marker
- * vim<600: noet sw=4 ts=4
- */

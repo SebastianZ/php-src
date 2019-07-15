@@ -2,7 +2,7 @@
   +----------------------------------------------------------------------+
   | PHP Version 7                                                        |
   +----------------------------------------------------------------------+
-  | Copyright (c) 1997-2014 The PHP Group                                |
+  | Copyright (c) The PHP Group                                          |
   +----------------------------------------------------------------------+
   | This source file is subject to version 3.01 of the PHP license,      |
   | that is bundled with this package in the file LICENSE, and is        |
@@ -16,8 +16,6 @@
   +----------------------------------------------------------------------+
 */
 
-/* $Id$ */
-
 #ifndef PHP_CONTENT_TYPES_H
 #define PHP_CONTENT_TYPES_H
 
@@ -25,7 +23,7 @@
 
 SAPI_API SAPI_POST_READER_FUNC(php_default_post_reader);
 SAPI_API SAPI_POST_HANDLER_FUNC(php_std_post_handler);
-int php_startup_sapi_content_types(TSRMLS_D);
-int php_setup_sapi_content_types(TSRMLS_D);
+int php_startup_sapi_content_types(void);
+int php_setup_sapi_content_types(void);
 
 #endif /* PHP_CONTENT_TYPES_H */

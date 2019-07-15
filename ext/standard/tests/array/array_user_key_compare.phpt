@@ -15,5 +15,5 @@ uksort($arr, "array_compare");
 var_dump($a);
 
 ?>
---EXPECTF--
-string(1) "A"
+--EXPECT--
+string(1) "B"

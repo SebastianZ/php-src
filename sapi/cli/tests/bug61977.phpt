@@ -2,12 +2,12 @@
 Bug #61977 test CLI web-server support for Mime Type File extensions mapping
 --SKIPIF--
 <?php
-include "skipif.inc"; 
+include "skipif.inc";
 ?>
 --FILE--
 <?php
 include "php_cli_server.inc";
-php_cli_server_start('<?php ?>', true);
+php_cli_server_start('<?php ?>', null);
 
 /*
  * If a Mime Type is added in php_cli_server.c, add it to this array and update
@@ -43,7 +43,7 @@ HEADER;
 
 test_mimetypes($mimetypes);
 ?>
---EXPECTF--
+--EXPECT--
 foo.html => Content-Type: text/html; charset=UTF-8
 foo.htm => Content-Type: text/html; charset=UTF-8
 foo.svg => Content-Type: image/svg+xml

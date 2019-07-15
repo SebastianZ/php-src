@@ -2,7 +2,7 @@
 Bug #52820 (writes to fopencookie FILE* not committed when seeking the stream)
 --SKIPIF--
 <?php
-if (!function_exists('leak_variable'))
+if (!function_exists('zend_leak_variable'))
    die("skip only for debug builds");
 /* unfortunately no standard function does a cast to FILE*, so we need
  * curl to test this */
@@ -33,39 +33,31 @@ echo "\nmemory stream (close after):\n";
 fclose(do_stuff("php://memory"));
 
 echo "\ntemp stream (leak):\n";
-leak_variable(do_stuff("php://temp"), true);
+zend_leak_variable(do_stuff("php://temp"));
 
 echo "\nmemory stream (leak):\n";
-leak_variable(do_stuff("php://memory"), true);
+zend_leak_variable(do_stuff("php://memory"));
 
 echo "\nDone.\n";
 --EXPECTF--
 temp stream (close after):
 About to rewind!
-* About to connect() to 127.0.0.1 port 37349%r.*%r
-*   Trying 127.0.0.1...%A* Connection refused
-* couldn't connect to host%S
-* Closing connection #0
+* %ATrying 127.0.0.1...%AConnection refused%A
+* Closing connection%A%d
 
 memory stream (close after):
 About to rewind!
-* About to connect() to 127.0.0.1 port 37349%r.*%r
-*   Trying 127.0.0.1...%A* Connection refused
-* couldn't connect to host%S
-* Closing connection #0
+* %ATrying 127.0.0.1...%AConnection refused%A
+* Closing connection%A%d
 
 temp stream (leak):
 About to rewind!
-* About to connect() to 127.0.0.1 port 37349%r.*%r
-*   Trying 127.0.0.1...%A* Connection refused
-* couldn't connect to host%S
-* Closing connection #0
+* %ATrying 127.0.0.1...%AConnection refused%A
+* Closing connection%A%d
 
 memory stream (leak):
 About to rewind!
-* About to connect() to 127.0.0.1 port 37349%r.*%r
-*   Trying 127.0.0.1...%A* Connection refused
-* couldn't connect to host%S
-* Closing connection #0
+* %ATrying 127.0.0.1...%AConnection refused%A
+* Closing connection%A%d
 
 Done.

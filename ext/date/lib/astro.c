@@ -1,35 +1,40 @@
 /*
-   +----------------------------------------------------------------------+
-   | PHP Version 7                                                        |
-   +----------------------------------------------------------------------+
-   | Copyright (c) 1997-2014 The PHP Group                                |
-   +----------------------------------------------------------------------+
-   | This source file is subject to version 3.01 of the PHP license,      |
-   | that is bundled with this package in the file LICENSE, and is        |
-   | available through the world-wide-web at the following url:           |
-   | http://www.php.net/license/3_01.txt                                  |
-   | If you did not receive a copy of the PHP license and are unable to   |
-   | obtain it through the world-wide-web, please send a note to          |
-   | license@php.net so we can mail you a copy immediately.               |
-   +----------------------------------------------------------------------+
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2015-2019 Derick Rethans
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
+/*
    | Algorithms are taken from a public domain source by Paul             |
    | Schlyter, who wrote this in December 1992                            |
-   +----------------------------------------------------------------------+
-   | Authors: Derick Rethans <derick@derickrethans.nl>                    |
-   +----------------------------------------------------------------------+
  */
 
-/* $Id$ */
-
+#include "timelib.h"
 #include <stdio.h>
 #include <math.h>
-#include "timelib.h"
 
 #define days_since_2000_Jan_0(y,m,d) \
 	(367L*(y)-((7*((y)+(((m)+9)/12)))/4)+((275*(m))/9)+(d)-730530L)
 
 #ifndef PI
- #define PI        3.1415926535897932384
+# define PI        3.1415926535897932384
 #endif
 
 #define RADEG     ( 180.0 / PI )
@@ -115,7 +120,7 @@ static double astro_GMST0(double d)
 	/* time, imposing no runtime or code overhead.               */
 	sidtim0 = astro_revolution((180.0 + 356.0470 + 282.9404) + (0.9856002585 + 4.70935E-5) * d);
 	return sidtim0;
-} 
+}
 
 /* This function computes the Sun's position at any instant */
 
@@ -177,32 +182,32 @@ static void astro_sun_RA_dec(double d, double *RA, double *dec, double *r)
 
 /**
  * Note: timestamp = unixtimestamp (NEEDS to be 00:00:00 UT)
- *       Eastern longitude positive, Western longitude negative       
- *       Northern latitude positive, Southern latitude negative       
- *       The longitude value IS critical in this function!            
- *       altit = the altitude which the Sun should cross              
- *               Set to -35/60 degrees for rise/set, -6 degrees       
- *               for civil, -12 degrees for nautical and -18          
- *               degrees for astronomical twilight.                   
- *         upper_limb: non-zero -> upper limb, zero -> center         
- *               Set to non-zero (e.g. 1) when computing rise/set     
- *               times, and to zero when computing start/end of       
- *               twilight.                                            
- *        *rise = where to store the rise time                        
- *        *set  = where to store the set  time                        
- *                Both times are relative to the specified altitude,  
- *                and thus this function can be used to compute       
- *                various twilight times, as well as rise/set times   
- * Return value:  0 = sun rises/sets this day, times stored at        
- *                    *trise and *tset.                               
- *               +1 = sun above the specified "horizon" 24 hours.     
- *                    *trise set to time when the sun is at south,    
- *                    minus 12 hours while *tset is set to the south  
- *                    time plus 12 hours. "Day" length = 24 hours     
- *               -1 = sun is below the specified "horizon" 24 hours   
- *                    "Day" length = 0 hours, *trise and *tset are    
- *                    both set to the time when the sun is at south.  
- *                                                                    
+ *       Eastern longitude positive, Western longitude negative
+ *       Northern latitude positive, Southern latitude negative
+ *       The longitude value IS critical in this function!
+ *       altit = the altitude which the Sun should cross
+ *               Set to -35/60 degrees for rise/set, -6 degrees
+ *               for civil, -12 degrees for nautical and -18
+ *               degrees for astronomical twilight.
+ *         upper_limb: non-zero -> upper limb, zero -> center
+ *               Set to non-zero (e.g. 1) when computing rise/set
+ *               times, and to zero when computing start/end of
+ *               twilight.
+ *        *rise = where to store the rise time
+ *        *set  = where to store the set  time
+ *                Both times are relative to the specified altitude,
+ *                and thus this function can be used to compute
+ *                various twilight times, as well as rise/set times
+ * Return value:  0 = sun rises/sets this day, times stored at
+ *                    *trise and *tset.
+ *               +1 = sun above the specified "horizon" 24 hours.
+ *                    *trise set to time when the sun is at south,
+ *                    minus 12 hours while *tset is set to the south
+ *                    time plus 12 hours. "Day" length = 24 hours
+ *               -1 = sun is below the specified "horizon" 24 hours
+ *                    "Day" length = 0 hours, *trise and *tset are
+ *                    both set to the time when the sun is at south.
+ *
  */
 int timelib_astro_rise_set_altitude(timelib_time *t_loc, double lon, double lat, double altit, int upper_limb, double *h_rise, double *h_set, timelib_sll *ts_rise, timelib_sll *ts_set, timelib_sll *ts_transit)
 {
@@ -225,7 +230,8 @@ int timelib_astro_rise_set_altitude(timelib_time *t_loc, double lon, double lat,
 	t_loc->i = t_loc->s = 0;
 	timelib_update_ts(t_loc, NULL);
 
-	/* Calculate TS belonging to UTC 00:00 of the current day */
+	/* Calculate TS belonging to UTC 00:00 of the current day, for input into
+	 * the algorithm */
 	t_utc = timelib_time_ctor();
 	t_utc->y = t_loc->y;
 	t_utc->m = t_loc->m;
@@ -234,8 +240,8 @@ int timelib_astro_rise_set_altitude(timelib_time *t_loc, double lon, double lat,
 	timelib_update_ts(t_utc, NULL);
 
 	/* Compute d of 12h local mean solar time */
-	timestamp = t_loc->sse;
-	d = timelib_ts_to_juliandate(timestamp) - lon/360.0;
+	timestamp = t_utc->sse;
+	d = timelib_ts_to_j2000(timestamp) + 2 - lon/360.0;
 
 	/* Compute local sidereal time of this moment */
 	sidtime = astro_revolution(astro_GMST0(d) + 180.0 + lon);
@@ -290,14 +296,18 @@ int timelib_astro_rise_set_altitude(timelib_time *t_loc, double lon, double lat,
 	return rc;
 }
 
-double timelib_ts_to_juliandate(timelib_sll ts)
+double timelib_ts_to_julianday(timelib_sll ts)
 {
 	double tmp;
 
-	tmp = ts;
-	tmp /= 86400;
-	tmp += 2440587.5;
-	tmp -= 2451543;
+	tmp = (double) ts;
+	tmp /= (double) 86400;
+	tmp += (double) 2440587.5;
 
 	return tmp;
+}
+
+double timelib_ts_to_j2000(timelib_sll ts)
+{
+	return timelib_ts_to_julianday(ts) - 2451545;
 }

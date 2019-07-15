@@ -5,7 +5,7 @@
  * LICENSE NOTICES
  *
  * This file is part of "streamable kanji code filter and converter",
- * which is distributed under the terms of GNU Lesser General Public 
+ * which is distributed under the terms of GNU Lesser General Public
  * License (version 2) as published by the Free Software Foundation.
  *
  * This software is distributed in the hope that it will be useful,
@@ -24,7 +24,7 @@
 /*
  * The source code included in this files was separated from mbfilter.c
  * by moriyoshi koizumi <moriyoshi@php.net> on 4 dec 2002.
- * 
+ *
  */
 
 #ifdef HAVE_CONFIG_H
@@ -42,7 +42,9 @@ const mbfl_encoding mbfl_encoding_ucs2 = {
 	"UCS-2",
 	(const char *(*)[])&mbfl_encoding_ucs2_aliases,
 	NULL,
-	MBFL_ENCTYPE_WCS2BE
+	MBFL_ENCTYPE_WCS2BE,
+	&vtbl_ucs2_wchar,
+	&vtbl_wchar_ucs2
 };
 
 const mbfl_encoding mbfl_encoding_ucs2be = {
@@ -51,7 +53,9 @@ const mbfl_encoding mbfl_encoding_ucs2be = {
 	"UCS-2BE",
 	NULL,
 	NULL,
-	MBFL_ENCTYPE_WCS2BE
+	MBFL_ENCTYPE_WCS2BE,
+	&vtbl_ucs2be_wchar,
+	&vtbl_wchar_ucs2be
 };
 
 const mbfl_encoding mbfl_encoding_ucs2le = {
@@ -60,7 +64,9 @@ const mbfl_encoding mbfl_encoding_ucs2le = {
 	"UCS-2LE",
 	NULL,
 	NULL,
-	MBFL_ENCTYPE_WCS2LE
+	MBFL_ENCTYPE_WCS2LE,
+	&vtbl_ucs2le_wchar,
+	&vtbl_wchar_ucs2le
 };
 
 const struct mbfl_convert_vtbl vtbl_ucs2_wchar = {
@@ -233,6 +239,3 @@ int mbfl_filt_conv_wchar_ucs2le(int c, mbfl_convert_filter *filter)
 
 	return c;
 }
-
-
-

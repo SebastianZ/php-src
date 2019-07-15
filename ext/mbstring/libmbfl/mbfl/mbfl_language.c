@@ -5,7 +5,7 @@
  * LICENSE NOTICES
  *
  * This file is part of "streamable kanji code filter and converter",
- * which is distributed under the terms of GNU Lesser General Public 
+ * which is distributed under the terms of GNU Lesser General Public
  * License (version 2) as published by the Free Software Foundation.
  *
  * This software is distributed in the hope that it will be useful,
@@ -32,17 +32,8 @@
 #include "config.h"
 #endif
 
-#ifdef HAVE_STDDEF_H
 #include <stddef.h>
-#endif
-
-#ifdef HAVE_STDDEF_H
-#include <stddef.h>
-#endif
-
-#ifdef HAVE_STRING_H
 #include <string.h>
-#endif
 
 #ifdef HAVE_STRINGS_H
 #include <strings.h>
@@ -67,7 +58,7 @@
 #ifdef HAVE_STRICMP
 #define strcasecmp stricmp
 #endif
-#endif 
+#endif
 
 static const mbfl_language *mbfl_language_ptr_table[] = {
 	&mbfl_language_uni,
@@ -168,4 +159,3 @@ mbfl_no_language2name(enum mbfl_no_language no_language)
 		return language->name;
 	}
 }
-

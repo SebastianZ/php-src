@@ -30,6 +30,7 @@
 #include "collator/collator_sort.h"
 #include <unicode/ubrk.h>
 #include "intl_error.h"
+#include "Zend/zend_exceptions.h"
 
 extern zend_module_entry intl_module_entry;
 #define phpext_intl_ptr &intl_module_entry
@@ -54,14 +55,13 @@ ZEND_BEGIN_MODULE_GLOBALS(intl)
 	zend_bool use_exceptions;
 ZEND_END_MODULE_GLOBALS(intl)
 
-/* Macro to access request-wide global variables. */
-#ifdef ZTS
-#define INTL_G(v) TSRMG(intl_globals_id, zend_intl_globals *, v)
-#else
-#define INTL_G(v) (intl_globals.v)
+#if defined(ZTS) && defined(COMPILE_DL_INTL)
+ZEND_TSRMLS_CACHE_EXTERN()
 #endif
 
 ZEND_EXTERN_MODULE_GLOBALS(intl)
+/* Macro to access request-wide global variables. */
+#define INTL_G(v) ZEND_MODULE_GLOBALS_ACCESSOR(intl, v)
 
 PHP_MINIT_FUNCTION(intl);
 PHP_MSHUTDOWN_FUNCTION(intl);
@@ -69,17 +69,8 @@ PHP_RINIT_FUNCTION(intl);
 PHP_RSHUTDOWN_FUNCTION(intl);
 PHP_MINFO_FUNCTION(intl);
 
-const char *intl_locale_get_default( TSRMLS_D );
+const char *intl_locale_get_default( void );
 
-#define PHP_INTL_VERSION "1.1.0"
+#define PHP_INTL_VERSION PHP_VERSION
 
 #endif  /* PHP_INTL_H */
-
-/*
- * Local variables:
- * tab-width: 4
- * c-basic-offset: 4
- * End:
- * vim600: noet sw=4 ts=4 fdm=marker
- * vim<600: noet sw=4 ts=4
- */

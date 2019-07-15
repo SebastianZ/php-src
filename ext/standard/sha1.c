@@ -2,7 +2,7 @@
    +----------------------------------------------------------------------+
    | PHP Version 7                                                        |
    +----------------------------------------------------------------------+
-   | Copyright (c) 1997-2014 The PHP Group                                |
+   | Copyright (c) The PHP Group                                          |
    +----------------------------------------------------------------------+
    | This source file is subject to version 3.01 of the PHP license,      |
    | that is bundled with this package in the file LICENSE, and is        |
@@ -16,11 +16,9 @@
    +----------------------------------------------------------------------+
 */
 
-/* $Id$ */
-
 #include "php.h"
 
-/* This code is heavily based on the PHP md5 implementation */ 
+/* This code is heavily based on the PHP md5 implementation */
 
 #include "sha1.h"
 #include "md5.h"
@@ -36,23 +34,23 @@ PHP_FUNCTION(sha1)
 {
 	zend_string *arg;
 	zend_bool raw_output = 0;
-	char sha1str[41];
 	PHP_SHA1_CTX context;
 	unsigned char digest[20];
-	
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "S|b", &arg, &raw_output) == FAILURE) {
-		return;
-	}
 
-	sha1str[0] = '\0';
+	ZEND_PARSE_PARAMETERS_START(1, 2)
+		Z_PARAM_STR(arg)
+		Z_PARAM_OPTIONAL
+		Z_PARAM_BOOL(raw_output)
+	ZEND_PARSE_PARAMETERS_END();
+
 	PHP_SHA1Init(&context);
-	PHP_SHA1Update(&context, arg->val, arg->len);
+	PHP_SHA1Update(&context, (unsigned char *) ZSTR_VAL(arg), ZSTR_LEN(arg));
 	PHP_SHA1Final(digest, &context);
 	if (raw_output) {
-		RETURN_STRINGL(digest, 20);
+		RETURN_STRINGL((char *) digest, 20);
 	} else {
-		make_digest_ex(sha1str, digest, 20);
-		RETVAL_STRING(sha1str);
+		RETVAL_NEW_STR(zend_string_alloc(40, 0));
+		make_digest_ex(Z_STRVAL_P(return_value), digest, 20);
 	}
 
 }
@@ -67,17 +65,18 @@ PHP_FUNCTION(sha1_file)
 	char          *arg;
 	size_t           arg_len;
 	zend_bool raw_output = 0;
-	char          sha1str[41];
 	unsigned char buf[1024];
 	unsigned char digest[20];
 	PHP_SHA1_CTX   context;
-	int           n;
+	size_t         n;
 	php_stream    *stream;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "p|b", &arg, &arg_len, &raw_output) == FAILURE) {
-		return;
-	}
-	
+	ZEND_PARSE_PARAMETERS_START(1, 2)
+		Z_PARAM_PATH(arg, arg_len)
+		Z_PARAM_OPTIONAL
+		Z_PARAM_BOOL(raw_output)
+	ZEND_PARSE_PARAMETERS_END();
+
 	stream = php_stream_open_wrapper(arg, "rb", REPORT_ERRORS, NULL);
 	if (!stream) {
 		RETURN_FALSE;
@@ -85,7 +84,7 @@ PHP_FUNCTION(sha1_file)
 
 	PHP_SHA1Init(&context);
 
-	while ((n = php_stream_read(stream, buf, sizeof(buf))) > 0) {
+	while ((n = php_stream_read(stream, (char *) buf, sizeof(buf))) > 0) {
 		PHP_SHA1Update(&context, buf, n);
 	}
 
@@ -93,25 +92,21 @@ PHP_FUNCTION(sha1_file)
 
 	php_stream_close(stream);
 
-	if (n<0) {
-		RETURN_FALSE;
-	}
-
 	if (raw_output) {
-		RETURN_STRINGL(digest, 20);
+		RETURN_STRINGL((char *) digest, 20);
 	} else {
-		make_digest_ex(sha1str, digest, 20);
-		RETVAL_STRING(sha1str);
+		RETVAL_NEW_STR(zend_string_alloc(40, 0));
+		make_digest_ex(Z_STRVAL_P(return_value), digest, 20);
 	}
 }
 /* }}} */
 
 
-static void SHA1Transform(php_uint32[5], const unsigned char[64]);
-static void SHA1Encode(unsigned char *, php_uint32 *, unsigned int);
-static void SHA1Decode(php_uint32 *, const unsigned char *, unsigned int);
+static void SHA1Transform(uint32_t[5], const unsigned char[64]);
+static void SHA1Encode(unsigned char *, uint32_t *, unsigned int);
+static void SHA1Decode(uint32_t *, const unsigned char *, unsigned int);
 
-static unsigned char PADDING[64] =
+static const unsigned char PADDING[64] =
 {
 	0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -132,31 +127,31 @@ static unsigned char PADDING[64] =
 /* W[i]
  */
 #define W(i) ( tmp=x[(i-3)&15]^x[(i-8)&15]^x[(i-14)&15]^x[i&15], \
-	(x[i&15]=ROTATE_LEFT(tmp, 1)) )  
+	(x[i&15]=ROTATE_LEFT(tmp, 1)) )
 
 /* FF, GG, HH, and II transformations for rounds 1, 2, 3, and 4.
  */
 #define FF(a, b, c, d, e, w) { \
- (e) += F ((b), (c), (d)) + (w) + (php_uint32)(0x5A827999); \
+ (e) += F ((b), (c), (d)) + (w) + (uint32_t)(0x5A827999); \
  (e) += ROTATE_LEFT ((a), 5); \
  (b) = ROTATE_LEFT((b), 30); \
   }
 #define GG(a, b, c, d, e, w) { \
- (e) += G ((b), (c), (d)) + (w) + (php_uint32)(0x6ED9EBA1); \
+ (e) += G ((b), (c), (d)) + (w) + (uint32_t)(0x6ED9EBA1); \
  (e) += ROTATE_LEFT ((a), 5); \
  (b) = ROTATE_LEFT((b), 30); \
   }
 #define HH(a, b, c, d, e, w) { \
- (e) += H ((b), (c), (d)) + (w) + (php_uint32)(0x8F1BBCDC); \
+ (e) += H ((b), (c), (d)) + (w) + (uint32_t)(0x8F1BBCDC); \
  (e) += ROTATE_LEFT ((a), 5); \
  (b) = ROTATE_LEFT((b), 30); \
   }
 #define II(a, b, c, d, e, w) { \
- (e) += I ((b), (c), (d)) + (w) + (php_uint32)(0xCA62C1D6); \
+ (e) += I ((b), (c), (d)) + (w) + (uint32_t)(0xCA62C1D6); \
  (e) += ROTATE_LEFT ((a), 5); \
  (b) = ROTATE_LEFT((b), 30); \
   }
-			                    
+
 
 /* {{{ PHP_SHA1Init
  * SHA1 initialization. Begins an SHA1 operation, writing a new context.
@@ -188,10 +183,10 @@ PHPAPI void PHP_SHA1Update(PHP_SHA1_CTX * context, const unsigned char *input,
 	index = (unsigned int) ((context->count[0] >> 3) & 0x3F);
 
 	/* Update number of bits */
-	if ((context->count[0] += ((php_uint32) inputLen << 3))
-		< ((php_uint32) inputLen << 3))
+	if ((context->count[0] += ((uint32_t) inputLen << 3))
+		< ((uint32_t) inputLen << 3))
 		context->count[1]++;
-	context->count[1] += ((php_uint32) inputLen >> 29);
+	context->count[1] += ((uint32_t) inputLen >> 29);
 
 	partLen = 64 - index;
 
@@ -234,7 +229,7 @@ PHPAPI void PHP_SHA1Final(unsigned char digest[20], PHP_SHA1_CTX * context)
 	bits[2] = (context->count[1] >> 8) & 0xFF;
 	bits[1] = (context->count[1] >> 16) & 0xFF;
 	bits[0] = (context->count[1] >> 24) & 0xFF;
-	
+
 	/* Pad out to 56 mod 64.
 	 */
 	index = (unsigned int) ((context->count[0] >> 3) & 0x3f);
@@ -249,7 +244,7 @@ PHPAPI void PHP_SHA1Final(unsigned char digest[20], PHP_SHA1_CTX * context)
 
 	/* Zeroize sensitive information.
 	 */
-	memset((unsigned char*) context, 0, sizeof(*context));
+	ZEND_SECURE_ZERO((unsigned char*) context, sizeof(*context));
 }
 /* }}} */
 
@@ -257,11 +252,11 @@ PHPAPI void PHP_SHA1Final(unsigned char digest[20], PHP_SHA1_CTX * context)
  * SHA1 basic transformation. Transforms state based on block.
  */
 static void SHA1Transform(state, block)
-php_uint32 state[5];
+uint32_t state[5];
 const unsigned char block[64];
 {
-	php_uint32 a = state[0], b = state[1], c = state[2];
-	php_uint32 d = state[3], e = state[4], x[16], tmp;
+	uint32_t a = state[0], b = state[1], c = state[2];
+	uint32_t d = state[3], e = state[4], x[16], tmp;
 
 	SHA1Decode(x, block, 64);
 
@@ -360,17 +355,17 @@ const unsigned char block[64];
 	state[4] += e;
 
 	/* Zeroize sensitive information. */
-	memset((unsigned char*) x, 0, sizeof(x));
+	ZEND_SECURE_ZERO((unsigned char*) x, sizeof(x));
 }
 /* }}} */
 
 /* {{{ SHA1Encode
-   Encodes input (php_uint32) into output (unsigned char). Assumes len is
+   Encodes input (uint32_t) into output (unsigned char). Assumes len is
    a multiple of 4.
  */
 static void SHA1Encode(output, input, len)
 unsigned char *output;
-php_uint32 *input;
+uint32_t *input;
 unsigned int len;
 {
 	unsigned int i, j;
@@ -385,27 +380,18 @@ unsigned int len;
 /* }}} */
 
 /* {{{ SHA1Decode
-   Decodes input (unsigned char) into output (php_uint32). Assumes len is
+   Decodes input (unsigned char) into output (uint32_t). Assumes len is
    a multiple of 4.
  */
 static void SHA1Decode(output, input, len)
-php_uint32 *output;
+uint32_t *output;
 const unsigned char *input;
 unsigned int len;
 {
 	unsigned int i, j;
 
 	for (i = 0, j = 0; j < len; i++, j += 4)
-		output[i] = ((php_uint32) input[j + 3]) | (((php_uint32) input[j + 2]) << 8) |
-			(((php_uint32) input[j + 1]) << 16) | (((php_uint32) input[j]) << 24);
+		output[i] = ((uint32_t) input[j + 3]) | (((uint32_t) input[j + 2]) << 8) |
+			(((uint32_t) input[j + 1]) << 16) | (((uint32_t) input[j]) << 24);
 }
 /* }}} */
-
-/*
- * Local variables:
- * tab-width: 4
- * c-basic-offset: 4
- * End:
- * vim600: sw=4 ts=4 fdm=marker
- * vim<600: sw=4 ts=4
- */

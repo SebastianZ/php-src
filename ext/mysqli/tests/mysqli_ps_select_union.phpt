@@ -44,8 +44,8 @@ require_once('skipifconnectfailure.inc');
 	if ($IS_MYSQLND) {
 		/*
 		Advantage mysqlnd -
-		The metadata mysqlnd has availabe after prepare is better than
-		the one made availabe by the MySQL Client Library (libmysql).
+		The metadata mysqlnd has available after prepare is better than
+		the one made available by the MySQL Client Library (libmysql).
 		"libmysql" will give wrong results and that is OK -
 		http://bugs.mysql.com/bug.php?id=47483
 		*/
@@ -251,25 +251,25 @@ require_once('skipifconnectfailure.inc');
 
 	print "done!";
 ?>
---EXPECTF--
+--EXPECT--
 Using CAST('somestring' AS CHAR)...
-%unicode|string%(3) "one"
-%unicode|string%(5) "three"
-%unicode|string%(3) "two"
+string(3) "one"
+string(5) "three"
+string(3) "two"
 Mixing CAST('somestring'AS CHAR), integer and CAST(integer AS CHAR)...
-%unicode|string%(1) "1"
-%unicode|string%(5) "three"
-%unicode|string%(1) "2"
+string(1) "1"
+string(5) "three"
+string(1) "2"
 Using integer only...
 int(1)
 int(303)
 int(2)
 Testing bind_param(), strings only...
-%unicode|string%(3) "one"
-%unicode|string%(5) "three"
-%unicode|string%(3) "two"
+string(3) "one"
+string(5) "three"
+string(3) "two"
 Testing bind_param(), strings only, with CAST AS CHAR...
-%unicode|string%(3) "one"
-%unicode|string%(32) "three beers are more than enough"
-%unicode|string%(3) "two"
+string(3) "one"
+string(32) "three beers are more than enough"
+string(3) "two"
 done!

@@ -1,5 +1,7 @@
 --TEST--
 Bug #64896 (Segfault with gc_collect_cycles using unserialize on certain objects)
+--INI--
+zend.enable_gc=1
 --FILE--
 <?php
 $bar = NULL;
@@ -27,7 +29,8 @@ gc_disable();
 
 unserialize(serialize($foo));
 gc_collect_cycles();
-var_dump($bar); 
+var_dump($bar);
+gc_enable();
 /*  will output:
 object(bad)#4 (1) {
   ["_private":"bad":private]=>

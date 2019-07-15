@@ -1,5 +1,3 @@
-
-	/* $Id: fpm_events.c,v 1.21.2.2 2008/12/13 03:21:18 anight Exp $ */
 	/* (c) 2007,2008 Andrei Nigmatulin */
 
 #include "fpm_config.h"
@@ -171,7 +169,7 @@ static int fpm_event_queue_add(struct fpm_event_queue_s **queue, struct fpm_even
 		module->add(ev);
 	}
 
-	return 0;	
+	return 0;
 }
 /* }}} */
 
@@ -291,7 +289,7 @@ int fpm_event_pre_init(char *machanism) /* {{{ */
 	}
 	return -1;
 }
-/* }} */
+/* }}} */
 
 const char *fpm_event_machanism_name() /* {{{ */
 {
@@ -464,7 +462,7 @@ void fpm_event_fire(struct fpm_event_s *ev) /* {{{ */
 		return;
 	}
 
-	(*ev->callback)( (struct fpm_event_s *) ev, ev->which, ev->arg);	
+	(*ev->callback)( (struct fpm_event_s *) ev, ev->which, ev->arg);
 }
 /* }}} */
 
@@ -536,6 +534,4 @@ int fpm_event_del(struct fpm_event_s *ev) /* {{{ */
 
 	return 0;
 }
-/* }}} */
-
 /* }}} */

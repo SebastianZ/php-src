@@ -11,9 +11,7 @@
 #include <stdarg.h>
 #if defined(HAVE_ICONV_H) || defined(HAVE_ICONV)
 #include <iconv.h>
-#ifdef HAVE_ERRNO_H
 #include <errno.h>
-#endif
 #endif
 
 #if defined(HAVE_ICONV_H) && !defined(HAVE_ICONV)
@@ -74,12 +72,11 @@ error (const char *format,...)
 {
 	va_list args;
 	char *tmp;
-	TSRMLS_FETCH();
 
 	va_start(args, format);
 	vspprintf(&tmp, 0, format, args);
 	va_end(args);
-	php_error_docref(NULL TSRMLS_CC, E_WARNING, "%s: %s", LIBNAME, tmp);
+	php_error_docref(NULL, E_WARNING, "%s: %s", LIBNAME, tmp);
 	efree(tmp);
 }
 
@@ -330,7 +327,7 @@ han2zen (int *p1, int *p2)
     {
       if ((*p2 >= 74 && *p2 <= 103) || (*p2 >= 110 && *p2 <= 122))
 	(*p2)++;
-      else if (*p2 == 131 && *p2 == 69)
+      else if (*p2 == 131 || *p2 == 69)
 	*p2 = 148;
     }
   else if (handaku && *p2 >= 110 && *p2 <= 122)
@@ -350,11 +347,9 @@ do_convert (unsigned char *to, unsigned char *from, const char *code)
   if ((cd = iconv_open (EUCSTR, code)) == (iconv_t) - 1)
     {
       error ("iconv_open() error");
-#ifdef HAVE_ERRNO_H
       if (errno == EINVAL)
 	error ("invalid code specification: \"%s\" or \"%s\"",
 	       EUCSTR, code);
-#endif
       strcpy ((char *) to, (const char *) from);
       return;
     }
@@ -364,7 +359,6 @@ do_convert (unsigned char *to, unsigned char *from, const char *code)
 
   if ((int) iconv(cd, (char **) &from, &from_len, (char **) &to, &to_len) == -1)
     {
-#ifdef HAVE_ERRNO_H
       if (errno == EINVAL)
 	error ("invalid end of input string");
       else if (errno == EILSEQ)
@@ -372,7 +366,6 @@ do_convert (unsigned char *to, unsigned char *from, const char *code)
       else if (errno == E2BIG)
 	error ("output buffer overflow at do_convert()");
       else
-#endif
 	error ("something happen");
       strcpy ((char *) to, (const char *) from);
       return;

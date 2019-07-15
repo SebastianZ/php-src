@@ -10,9 +10,9 @@ Test fscanf() function: usage variations - string formats with integer values
 
 /* Test fscanf() to scan integer values using different string format types */
 
-$file_path = dirname(__FILE__);
+$file_path = __DIR__;
 
-echo "*** Test fscanf(): different string format types with integer values ***\n"; 
+echo "*** Test fscanf(): different string format types with integer values ***\n";
 
 // create a file
 $filename = "$file_path/fscanf_variation18.tmp";
@@ -35,10 +35,10 @@ $integer_values = array (
   0Xfff,
   0XFA,
   -0x80000000, // max negative integer as hexadecimal
-  0x7fffffff,  // max postive integer as hexadecimal
-  0x7FFFFFFF,  // max postive integer as hexadecimal
+  0x7fffffff,  // max positive integer as hexadecimal
+  0x7FFFFFFF,  // max positive integer as hexadecimal
   0123,        // integer as octal
-  01912,       // should be quivalent to octal 1
+  01,       // should be quivalent to octal 1
   -020000000000, // max negative integer as octal
   017777777777  // max positive integer as octal
 );
@@ -82,7 +82,7 @@ echo "\n*** Done ***";
 ?>
 --CLEAN--
 <?php
-$file_path = dirname(__FILE__);
+$file_path = __DIR__;
 $filename = "$file_path/fscanf_variation18.tmp";
 unlink($filename);
 ?>
@@ -1011,4 +1011,3 @@ array(0) {
 bool(false)
 
 *** Done ***
-

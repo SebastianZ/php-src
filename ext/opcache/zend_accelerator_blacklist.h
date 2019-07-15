@@ -2,7 +2,7 @@
    +----------------------------------------------------------------------+
    | Zend OPcache                                                         |
    +----------------------------------------------------------------------+
-   | Copyright (c) 1998-2014 The PHP Group                                |
+   | Copyright (c) The PHP Group                                          |
    +----------------------------------------------------------------------+
    | This source file is subject to version 3.01 of the PHP license,      |
    | that is bundled with this package in the file LICENSE, and is        |
@@ -12,10 +12,10 @@
    | obtain it through the world-wide-web, please send a note to          |
    | license@php.net so we can mail you a copy immediately.               |
    +----------------------------------------------------------------------+
-   | Authors: Andi Gutmans <andi@zend.com>                                |
-   |          Zeev Suraski <zeev@zend.com>                                |
+   | Authors: Andi Gutmans <andi@php.net>                                 |
+   |          Zeev Suraski <zeev@php.net>                                 |
    |          Stanislav Malyshev <stas@zend.com>                          |
-   |          Dmitry Stogov <dmitry@zend.com>                             |
+   |          Dmitry Stogov <dmitry@php.net>                              |
    +----------------------------------------------------------------------+
 */
 
@@ -37,7 +37,7 @@ typedef struct _zend_blacklist {
 	zend_regexp_list     *regexp_list;
 } zend_blacklist;
 
-typedef int (*blacklist_apply_func_arg_t)(zend_blacklist_entry *, zval * TSRMLS_DC);
+typedef int (*blacklist_apply_func_arg_t)(zend_blacklist_entry *, zval *);
 
 extern zend_blacklist accel_blacklist;
 
@@ -45,7 +45,7 @@ void zend_accel_blacklist_init(zend_blacklist *blacklist);
 void zend_accel_blacklist_shutdown(zend_blacklist *blacklist);
 
 void zend_accel_blacklist_load(zend_blacklist *blacklist, char *filename);
-zend_bool zend_accel_blacklist_is_blacklisted(zend_blacklist *blacklist, char *verify_path);
-void zend_accel_blacklist_apply(zend_blacklist *blacklist, blacklist_apply_func_arg_t func, void *argument TSRMLS_DC);
+zend_bool zend_accel_blacklist_is_blacklisted(zend_blacklist *blacklist, char *verify_path, size_t verify_path_len);
+void zend_accel_blacklist_apply(zend_blacklist *blacklist, blacklist_apply_func_arg_t func, void *argument);
 
 #endif /* ZEND_ACCELERATOR_BLACKLIST_H */

@@ -1,10 +1,10 @@
 --TEST--
-imap_fetchstructure() function : basic functionality 
+imap_fetchstructure() function : basic functionality
 --CREDITS--
 Olivier Doucet
 --SKIPIF--
 <?php
-require_once(dirname(__FILE__).'/skipif.inc');
+require_once(__DIR__.'/skipif.inc');
 ?>
 --FILE--
 <?php
@@ -15,7 +15,7 @@ echo  "Checking with incorrect parameter type\n";
 imap_fetchstructure('');
 imap_fetchstructure(false);
 
-require_once(dirname(__FILE__).'/imap_include.inc');
+require_once(__DIR__.'/imap_include.inc');
 $stream_id = setup_test_mailbox('', 1);
 
 imap_fetchstructure($stream_id);
@@ -34,12 +34,13 @@ var_dump($z->type);
 var_dump($z->encoding);
 var_dump($z->bytes);
 var_dump($z->lines);
-var_dump(is_object($z->parameters));
+var_dump($z->ifparameters);
+var_dump(is_object($z->parameters[0]));
 
 imap_close($stream_id);
 ?>
 --CLEAN--
-<?php 
+<?php
 require_once('clean.inc');
 ?>
 --EXPECTF--
@@ -67,4 +68,5 @@ int(%d)
 int(%d)
 int(%d)
 int(%d)
+int(1)
 bool(true)

@@ -2,7 +2,7 @@
    +----------------------------------------------------------------------+
    | PHP Version 7                                                        |
    +----------------------------------------------------------------------+
-   | Copyright (c) 1997-2014 The PHP Group                                |
+   | Copyright (c) The PHP Group                                          |
    +----------------------------------------------------------------------+
    | This source file is subject to version 3.01 of the PHP license,      |
    | that is bundled with this package in the file LICENSE, and is        |
@@ -15,8 +15,6 @@
    | Author: Wez Furlong  <wez@thebrainroom.com>                          |
    +----------------------------------------------------------------------+
  */
-
-/* $Id$ */
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -53,17 +51,17 @@ typedef struct _Imscorlib_System_AppDomain IAppDomain;
 struct _Imscorlib_System_AppDomainVtbl {
 	BEGIN_INTERFACE
 
-	HRESULT ( STDMETHODCALLTYPE *QueryInterface )( 
+	HRESULT ( STDMETHODCALLTYPE *QueryInterface )(
 		IAppDomain * This,
 		/* [in] */ REFIID riid,
 		/* [iid_is][out] */ void **ppvObject);
-        
-	ULONG ( STDMETHODCALLTYPE *AddRef )( 
+
+	ULONG ( STDMETHODCALLTYPE *AddRef )(
 		IAppDomain * This);
-        
-	ULONG ( STDMETHODCALLTYPE *Release )( 
+
+	ULONG ( STDMETHODCALLTYPE *Release )(
 		IAppDomain * This);
-        
+
 	/* this is padding to get CreateInstance into the correct position */
 #define DUMMY_METHOD(x)		HRESULT ( STDMETHODCALLTYPE *dummy_##x )(IAppDomain *This)
 
@@ -121,7 +119,7 @@ struct dotnet_runtime_stuff {
 	DISPID create_instance;
 };
 
-static HRESULT dotnet_init(char **p_where TSRMLS_DC)
+static HRESULT dotnet_init(char **p_where)
 {
 	HRESULT hr;
 	struct dotnet_runtime_stuff *stuff;
@@ -146,7 +144,7 @@ static HRESULT dotnet_init(char **p_where TSRMLS_DC)
 	hr = ICorRuntimeHost_Start(stuff->dotnet_host);
 	if (FAILED(hr))
 		goto out;
-	
+
 	where = "ICorRuntimeHost_GetDefaultDomain";
 	hr = ICorRuntimeHost_GetDefaultDomain(stuff->dotnet_host, &unk);
 	if (FAILED(hr))
@@ -156,7 +154,7 @@ static HRESULT dotnet_init(char **p_where TSRMLS_DC)
 	hr = IUnknown_QueryInterface(unk, &IID_mscorlib_System_AppDomain, (LPVOID*)&stuff->dotnet_domain);
 	if (FAILED(hr))
 		goto out;
-		
+
 	COMG(dotnet_runtime_stuff) = stuff;
 
 out:
@@ -196,19 +194,19 @@ PHP_FUNCTION(com_dotnet_create_instance)
 	int ret = FAILURE;
 	char *where = "";
 	IUnknown *unk = NULL;
+	zend_long cp = GetACP();
+	const struct php_win32_cp *cp_it;
 
-	php_com_initialize(TSRMLS_C);
+	php_com_initialize();
 	stuff = (struct dotnet_runtime_stuff*)COMG(dotnet_runtime_stuff);
 	if (stuff == NULL) {
-		hr = dotnet_init(&where TSRMLS_CC);
+		hr = dotnet_init(&where);
 		if (FAILED(hr)) {
 			char buf[1024];
 			char *err = php_win32_error_to_msg(hr);
 			snprintf(buf, sizeof(buf), "Failed to init .Net runtime [%s] %s", where, err);
-			if (err)
-				LocalFree(err);
-			php_com_throw_exception(hr, buf TSRMLS_CC);
-			ZEND_CTOR_MAKE_NULL();
+			php_win32_error_msg_free(err);
+			php_com_throw_exception(hr, buf);
 			return;
 		}
 		stuff = (struct dotnet_runtime_stuff*)COMG(dotnet_runtime_stuff);
@@ -220,9 +218,8 @@ PHP_FUNCTION(com_dotnet_create_instance)
 			char buf[1024];
 			char *err = php_win32_error_to_msg(hr);
 			snprintf(buf, sizeof(buf), "Failed to re-init .Net domain [%s] %s", where, err);
-			if (err)
-				LocalFree(err);
-			php_com_throw_exception(hr, buf TSRMLS_CC);
+			php_win32_error_msg_free(err);
+			php_com_throw_exception(hr, buf);
 			ZVAL_NULL(object);
 			return;
 		}
@@ -233,9 +230,8 @@ PHP_FUNCTION(com_dotnet_create_instance)
 			char buf[1024];
 			char *err = php_win32_error_to_msg(hr);
 			snprintf(buf, sizeof(buf), "Failed to re-init .Net domain [%s] %s", where, err);
-			if (err)
-				LocalFree(err);
-			php_com_throw_exception(hr, buf TSRMLS_CC);
+			php_win32_error_msg_free(err);
+			php_com_throw_exception(hr, buf);
 			ZVAL_NULL(object);
 			return;
 		}
@@ -243,17 +239,23 @@ PHP_FUNCTION(com_dotnet_create_instance)
 
 	obj = CDNO_FETCH(object);
 
-	if (FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ss|l",
+	if (FAILURE == zend_parse_parameters(ZEND_NUM_ARGS(), "ss|l",
 			&assembly_name, &assembly_name_len,
 			&datatype_name, &datatype_name_len,
-			&obj->code_page)) {
-		php_com_throw_exception(E_INVALIDARG, "Could not create .Net object - invalid arguments!" TSRMLS_CC);
-		ZEND_CTOR_MAKE_NULL();
+			&cp)) {
+		php_com_throw_exception(E_INVALIDARG, "Could not create .Net object - invalid arguments!");
 		return;
 	}
 
-	oletype = php_com_string_to_olestring(datatype_name, datatype_name_len, obj->code_page TSRMLS_CC);
-	oleassembly = php_com_string_to_olestring(assembly_name, assembly_name_len, obj->code_page TSRMLS_CC);
+	cp_it = php_win32_cp_get_by_id((DWORD)cp);
+	if (!cp_it) {
+		php_com_throw_exception(E_INVALIDARG, "Could not create .Net object - invalid codepage!");
+		return;
+	}
+	obj->code_page = (int)cp_it->id;
+
+	oletype = php_com_string_to_olestring(datatype_name, datatype_name_len, obj->code_page);
+	oleassembly = php_com_string_to_olestring(assembly_name, assembly_name_len, obj->code_page);
 	oletype_sys = SysAllocString(oletype);
 	oleassembly_sys = SysAllocString(oleassembly);
 	where = "CreateInstance";
@@ -310,20 +312,17 @@ PHP_FUNCTION(com_dotnet_create_instance)
 		char buf[1024];
 		char *err = php_win32_error_to_msg(hr);
 		snprintf(buf, sizeof(buf), "Failed to instantiate .Net object [%s] [0x%08x] %s", where, hr, err);
-		if (err && err[0]) {
-			LocalFree(err);
-		}
-		php_com_throw_exception(hr, buf TSRMLS_CC);
-		ZEND_CTOR_MAKE_NULL();
+		php_win32_error_msg_free(err);
+		php_com_throw_exception(hr, buf);
 		return;
 	}
 }
 /* }}} */
 
-void php_com_dotnet_mshutdown(TSRMLS_D)
+void php_com_dotnet_mshutdown(void)
 {
 	struct dotnet_runtime_stuff *stuff = COMG(dotnet_runtime_stuff);
-	
+
 	if (stuff->dotnet_domain) {
 		IDispatch_Release(stuff->dotnet_domain);
 	}
@@ -336,10 +335,10 @@ void php_com_dotnet_mshutdown(TSRMLS_D)
 	COMG(dotnet_runtime_stuff) = NULL;
 }
 
-void php_com_dotnet_rshutdown(TSRMLS_D)
+void php_com_dotnet_rshutdown(void)
 {
 	struct dotnet_runtime_stuff *stuff = COMG(dotnet_runtime_stuff);
-	
+
 	if (stuff->dotnet_domain) {
 		IDispatch_Release(stuff->dotnet_domain);
 		stuff->dotnet_domain = NULL;

@@ -1,10 +1,8 @@
 --TEST--
 Bug #22510 (segfault among complex references)
---INI--
-error_reporting=E_ALL | E_DEPRECATED
 --FILE--
 <?php
-class foo 
+class foo
 {
 	public $list = array();
 
@@ -29,7 +27,7 @@ class foo
 	}
 }
 
-class bar 
+class bar
 {
 	function run1() {
 		print __CLASS__."::".__FUNCTION__."\n";
@@ -66,7 +64,7 @@ function ok1(&$bar) {
 
 function ok2(&$bar) {
 	print __FUNCTION__."\n";
-	@$a = $a; 
+	@$a = $a;
 	$bar->run2();
 }
 
@@ -76,7 +74,8 @@ function ok3(&$bar) {
 	$bar->run3();
 }
 
-$bar = &new bar();
+$foo = new bar();
+$bar =& $foo;
 ok1($bar);
 $bar->instance->finalize();
 print "done!\n";
@@ -91,7 +90,6 @@ $bar->instance->finalize();
 print "I'm alive!\n";
 ?>
 --EXPECTF--
-Deprecated: Assigning the return value of new by reference is deprecated in %s on line %d
 ok1
 bar::run1
 foo::method1

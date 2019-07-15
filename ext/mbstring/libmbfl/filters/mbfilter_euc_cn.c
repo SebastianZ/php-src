@@ -5,7 +5,7 @@
  * LICENSE NOTICES
  *
  * This file is part of "streamable kanji code filter and converter",
- * which is distributed under the terms of GNU Lesser General Public 
+ * which is distributed under the terms of GNU Lesser General Public
  * License (version 2) as published by the Free Software Foundation.
  *
  * This software is distributed in the hope that it will be useful,
@@ -65,7 +65,9 @@ const mbfl_encoding mbfl_encoding_euc_cn = {
 	"CN-GB",
 	(const char *(*)[])&mbfl_encoding_euc_cn_aliases,
 	mblen_table_euccn,
-	MBFL_ENCTYPE_MBCS
+	MBFL_ENCTYPE_MBCS,
+	&vtbl_euccn_wchar,
+	&vtbl_wchar_euccn
 };
 
 const struct mbfl_identify_vtbl vtbl_identify_euccn = {
@@ -172,7 +174,7 @@ mbfl_filt_conv_wchar_euccn(int c, mbfl_convert_filter *filter)
 		if (c == 0xff04) {
 			s = 0xa1e7;
 		} else if (c == 0xff5e) {
-			s = 0xa1ab; 
+			s = 0xa1ab;
 		} else if (c >= 0xff01 && c <= 0xff5d) {
 			s = c - 0xff01 + 0xa3a1;
 		} else if (c >= 0xffe0 && c <= 0xffe5) {
@@ -181,7 +183,7 @@ mbfl_filt_conv_wchar_euccn(int c, mbfl_convert_filter *filter)
 	}
 	c1 = (s >> 8) & 0xff;
 	c2 = s & 0xff;
-	
+
 	if (c1 < 0xa1 || c2 < 0xa1) { /* exclude CP936 extension */
 		s = c;
 	}
@@ -240,5 +242,3 @@ static int mbfl_filt_ident_euccn(int c, mbfl_identify_filter *filter)
 
 	return c;
 }
-
-

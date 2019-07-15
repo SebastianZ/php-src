@@ -2,7 +2,7 @@
    +----------------------------------------------------------------------+
    | PHP Version 7                                                        |
    +----------------------------------------------------------------------+
-   | Copyright (c) 1997-2014 The PHP Group                                |
+   | Copyright (c) The PHP Group                                          |
    +----------------------------------------------------------------------+
    | This source file is subject to version 3.01 of the PHP license,      |
    | that is bundled with this package in the file LICENSE, and is        |
@@ -15,8 +15,6 @@
    | Authors: Marcus Boerger <helly@php.net>                              |
    +----------------------------------------------------------------------+
  */
-
-/* $Id$ */
 
 #include "php.h"
 #include "php_streams_int.h"
@@ -47,7 +45,7 @@ typedef struct {
 	size_t   pattern_len;
 } glob_s_t;
 
-PHPAPI char* _php_glob_stream_get_path(php_stream *stream, int copy, size_t *plen STREAMS_DC TSRMLS_DC) /* {{{ */
+PHPAPI char* _php_glob_stream_get_path(php_stream *stream, size_t *plen STREAMS_DC) /* {{{ */
 {
 	glob_s_t *pglob = (glob_s_t *)stream->abstract;
 
@@ -55,11 +53,7 @@ PHPAPI char* _php_glob_stream_get_path(php_stream *stream, int copy, size_t *ple
 		if (plen) {
 			*plen = pglob->path_len;
 		}
-		if (copy) {
-			return estrndup(pglob->path, pglob->path_len);
-		} else {
-			return pglob->path;
-		}
+		return pglob->path;
 	} else {
 		if (plen) {
 			*plen = 0;
@@ -69,19 +63,15 @@ PHPAPI char* _php_glob_stream_get_path(php_stream *stream, int copy, size_t *ple
 }
 /* }}} */
 
-PHPAPI char* _php_glob_stream_get_pattern(php_stream *stream, int copy, size_t *plen STREAMS_DC TSRMLS_DC) /* {{{ */
+PHPAPI char* _php_glob_stream_get_pattern(php_stream *stream, size_t *plen STREAMS_DC) /* {{{ */
 {
 	glob_s_t *pglob = (glob_s_t *)stream->abstract;
-	
+
 	if (pglob && pglob->pattern) {
 		if (plen) {
 			*plen = pglob->pattern_len;
 		}
-		if (copy) {
-			return estrndup(pglob->pattern, pglob->pattern_len);
-		} else {
-			return pglob->pattern;
-		}
+		return pglob->pattern;
 	} else {
 		if (plen) {
 			*plen = 0;
@@ -91,7 +81,7 @@ PHPAPI char* _php_glob_stream_get_pattern(php_stream *stream, int copy, size_t *
 }
 /* }}} */
 
-PHPAPI int _php_glob_stream_get_count(php_stream *stream, int *pflags STREAMS_DC TSRMLS_DC) /* {{{ */
+PHPAPI int _php_glob_stream_get_count(php_stream *stream, int *pflags STREAMS_DC) /* {{{ */
 {
 	glob_s_t *pglob = (glob_s_t *)stream->abstract;
 
@@ -109,14 +99,14 @@ PHPAPI int _php_glob_stream_get_count(php_stream *stream, int *pflags STREAMS_DC
 }
 /* }}} */
 
-static void php_glob_stream_path_split(glob_s_t *pglob, const char *path, int get_path, const char **p_file TSRMLS_DC) /* {{{ */
+static void php_glob_stream_path_split(glob_s_t *pglob, const char *path, int get_path, const char **p_file) /* {{{ */
 {
 	const char *pos, *gpath = path;
 
 	if ((pos = strrchr(path, '/')) != NULL) {
 		path = pos+1;
 	}
-#if defined(PHP_WIN32) || defined(NETWARE)
+#ifdef PHP_WIN32
 	if ((pos = strrchr(path, '\\')) != NULL) {
 		path = pos+1;
 	}
@@ -128,7 +118,7 @@ static void php_glob_stream_path_split(glob_s_t *pglob, const char *path, int ge
 		if (pglob->path) {
 			efree(pglob->path);
 		}
-		if (path != gpath) {
+		if ((path - gpath) > 1) {
 			path--;
 		}
 		pglob->path_len = path - gpath;
@@ -137,7 +127,7 @@ static void php_glob_stream_path_split(glob_s_t *pglob, const char *path, int ge
 }
 /* }}} */
 
-static size_t php_glob_stream_read(php_stream *stream, char *buf, size_t count TSRMLS_DC) /* {{{ */
+static size_t php_glob_stream_read(php_stream *stream, char *buf, size_t count) /* {{{ */
 {
 	glob_s_t *pglob = (glob_s_t *)stream->abstract;
 	php_stream_dirent *ent = (php_stream_dirent*)buf;
@@ -146,7 +136,7 @@ static size_t php_glob_stream_read(php_stream *stream, char *buf, size_t count T
 	/* avoid problems if someone mis-uses the stream */
 	if (count == sizeof(php_stream_dirent) && pglob) {
 		if (pglob->index < (size_t)pglob->glob.gl_pathc) {
-			php_glob_stream_path_split(pglob, pglob->glob.gl_pathv[pglob->index++], pglob->flags & GLOB_APPEND, &path TSRMLS_CC);
+			php_glob_stream_path_split(pglob, pglob->glob.gl_pathv[pglob->index++], pglob->flags & GLOB_APPEND, &path);
 			PHP_STRLCPY(ent->d_name, path, sizeof(ent->d_name), strlen(path));
 			return sizeof(php_stream_dirent);
 		}
@@ -161,7 +151,7 @@ static size_t php_glob_stream_read(php_stream *stream, char *buf, size_t count T
 }
 /* }}} */
 
-static int php_glob_stream_close(php_stream *stream, int close_handle TSRMLS_DC)  /* {{{ */
+static int php_glob_stream_close(php_stream *stream, int close_handle)  /* {{{ */
 {
 	glob_s_t *pglob = (glob_s_t *)stream->abstract;
 
@@ -180,7 +170,7 @@ static int php_glob_stream_close(php_stream *stream, int close_handle TSRMLS_DC)
 }
 /* {{{ */
 
-static int php_glob_stream_rewind(php_stream *stream, zend_off_t offset, int whence, zend_off_t *newoffs TSRMLS_DC) /* {{{ */
+static int php_glob_stream_rewind(php_stream *stream, zend_off_t offset, int whence, zend_off_t *newoffs) /* {{{ */
 {
 	glob_s_t *pglob = (glob_s_t *)stream->abstract;
 
@@ -195,7 +185,7 @@ static int php_glob_stream_rewind(php_stream *stream, zend_off_t offset, int whe
 }
 /* }}} */
 
-php_stream_ops  php_glob_stream_ops = {
+const php_stream_ops  php_glob_stream_ops = {
 	NULL, php_glob_stream_read,
 	php_glob_stream_close, NULL,
 	"glob",
@@ -207,25 +197,25 @@ php_stream_ops  php_glob_stream_ops = {
 
  /* {{{ php_glob_stream_opener */
 static php_stream *php_glob_stream_opener(php_stream_wrapper *wrapper, const char *path, const char *mode,
-		int options, char **opened_path, php_stream_context *context STREAMS_DC TSRMLS_DC)
+		int options, zend_string **opened_path, php_stream_context *context STREAMS_DC)
 {
 	glob_s_t *pglob;
 	int ret;
 	const char *tmp, *pos;
 
-	if (((options & STREAM_DISABLE_OPEN_BASEDIR) == 0) && php_check_open_basedir(path TSRMLS_CC)) {
-		return NULL;
-	}
-
 	if (!strncmp(path, "glob://", sizeof("glob://")-1)) {
 		path += sizeof("glob://")-1;
 		if (opened_path) {
-			*opened_path = estrdup(path);
+			*opened_path = zend_string_init(path, strlen(path), 0);
 		}
 	}
 
+	if (((options & STREAM_DISABLE_OPEN_BASEDIR) == 0) && php_check_open_basedir(path)) {
+		return NULL;
+	}
+
 	pglob = ecalloc(sizeof(*pglob), 1);
-	
+
 	if (0 != (ret = glob(path, pglob->flags & GLOB_FLAGMASK, NULL, &pglob->glob))) {
 #ifdef GLOB_NOMATCH
 		if (GLOB_NOMATCH != ret)
@@ -240,7 +230,7 @@ static php_stream *php_glob_stream_opener(php_stream_wrapper *wrapper, const cha
 	if ((tmp = strrchr(pos, '/')) != NULL) {
 		pos = tmp+1;
 	}
-#if defined(PHP_WIN32) || defined(NETWARE)
+#ifdef PHP_WIN32
 	if ((tmp = strrchr(pos, '\\')) != NULL) {
 		pos = tmp+1;
 	}
@@ -252,16 +242,16 @@ static php_stream *php_glob_stream_opener(php_stream_wrapper *wrapper, const cha
 	pglob->flags |= GLOB_APPEND;
 
 	if (pglob->glob.gl_pathc) {
-		php_glob_stream_path_split(pglob, pglob->glob.gl_pathv[0], 1, &tmp TSRMLS_CC);
+		php_glob_stream_path_split(pglob, pglob->glob.gl_pathv[0], 1, &tmp);
 	} else {
-		php_glob_stream_path_split(pglob, path, 1, &tmp TSRMLS_CC);
+		php_glob_stream_path_split(pglob, path, 1, &tmp);
 	}
 
 	return php_stream_alloc(&php_glob_stream_ops, pglob, 0, mode);
 }
 /* }}} */
 
-static php_stream_wrapper_ops  php_glob_stream_wrapper_ops = {
+static const php_stream_wrapper_ops  php_glob_stream_wrapper_ops = {
 	NULL,
 	NULL,
 	NULL,
@@ -271,21 +261,13 @@ static php_stream_wrapper_ops  php_glob_stream_wrapper_ops = {
 	NULL,
 	NULL,
 	NULL,
+	NULL,
 	NULL
 };
 
-php_stream_wrapper  php_glob_stream_wrapper = {
+const php_stream_wrapper  php_glob_stream_wrapper = {
 	&php_glob_stream_wrapper_ops,
 	NULL,
 	0
 };
 #endif /* HAVE_GLOB */
-
-/*
- * Local variables:
- * tab-width: 4
- * c-basic-offset: 4
- * End:
- * vim600: noet sw=4 ts=4 fdm=marker
- * vim<600: noet sw=4 ts=4
- */

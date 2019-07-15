@@ -2,7 +2,7 @@
   +----------------------------------------------------------------------+
   | PHP Version 7                                                        |
   +----------------------------------------------------------------------+
-  | Copyright (c) 1997-2014 The PHP Group                                |
+  | Copyright (c) The PHP Group                                          |
   +----------------------------------------------------------------------+
   | This source file is subject to version 3.01 of the PHP license,      |
   | that is bundled with this package in the file LICENSE, and is        |
@@ -15,8 +15,6 @@
   | Authors: Derick Rethans <derick@php.net>                             |
   +----------------------------------------------------------------------+
 */
-
-/* $Id$ */
 
 #ifndef FILTER_PRIVATE_H
 #define FILTER_PRIVATE_H
@@ -55,6 +53,10 @@
 #define FILTER_FLAG_NO_RES_RANGE            0x400000
 #define FILTER_FLAG_NO_PRIV_RANGE           0x800000
 
+#define FILTER_FLAG_HOSTNAME               0x100000
+
+#define FILTER_FLAG_EMAIL_UNICODE          0x100000
+
 #define FILTER_VALIDATE_INT           0x0101
 #define FILTER_VALIDATE_BOOLEAN       0x0102
 #define FILTER_VALIDATE_FLOAT         0x0103
@@ -64,7 +66,8 @@
 #define FILTER_VALIDATE_EMAIL         0x0112
 #define FILTER_VALIDATE_IP            0x0113
 #define FILTER_VALIDATE_MAC           0x0114
-#define FILTER_VALIDATE_LAST          0x0114
+#define FILTER_VALIDATE_DOMAIN        0x0115
+#define FILTER_VALIDATE_LAST          0x0115
 
 #define FILTER_VALIDATE_ALL           0x0100
 
@@ -80,7 +83,8 @@
 #define FILTER_SANITIZE_NUMBER_FLOAT  0x0208
 #define FILTER_SANITIZE_MAGIC_QUOTES  0x0209
 #define FILTER_SANITIZE_FULL_SPECIAL_CHARS 0x020a
-#define FILTER_SANITIZE_LAST          0x020a
+#define FILTER_SANITIZE_ADD_SLASHES   0x020b
+#define FILTER_SANITIZE_LAST          0x020b
 
 #define FILTER_SANITIZE_ALL           0x0200
 
@@ -92,7 +96,7 @@
 || id == FILTER_CALLBACK)
 
 #define RETURN_VALIDATION_FAILED	\
-	zval_dtor(value);	\
+	zval_ptr_dtor(value);	\
 	if (flags & FILTER_NULL_ON_FAILURE) {	\
 		ZVAL_NULL(value);	\
 	} else {	\
@@ -117,24 +121,4 @@
 	} \
 }
 
-#define PHP_FILTER_GET_LONG_OPT(zv, opt) { \
-	if (Z_TYPE_P(zv) != IS_LONG) { \
-		zval ___tmp; \
-		ZVAL_DUP(&___tmp, zv); \
-		convert_to_long(&___tmp); \
-		opt = Z_LVAL(___tmp); \
-	} else { \
-		opt = Z_LVAL_P(zv); \
-	} \
-}
-
 #endif /* FILTER_PRIVATE_H */
-
-/*
- * Local variables:
- * tab-width: 4
- * c-basic-offset: 4
- * End:
- * vim600: noet sw=4 ts=4 fdm=marker
- * vim<600: noet sw=4 ts=4
- */

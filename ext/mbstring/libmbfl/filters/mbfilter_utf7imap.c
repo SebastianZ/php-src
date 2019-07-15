@@ -5,7 +5,7 @@
  * LICENSE NOTICES
  *
  * This file is part of "streamable kanji code filter and converter",
- * which is distributed under the terms of GNU Lesser General Public 
+ * which is distributed under the terms of GNU Lesser General Public
  * License (version 2) as published by the Free Software Foundation.
  *
  * This software is distributed in the hope that it will be useful,
@@ -24,7 +24,7 @@
 /*
  * The source code included in this files was separated from mbfilter.c
  * by moriyoshi koizumi <moriyoshi@php.net> on 4 dec 2002.
- * 
+ *
  */
 
 #ifdef HAVE_CONFIG_H
@@ -40,7 +40,9 @@ const mbfl_encoding mbfl_encoding_utf7imap = {
 	NULL,
 	NULL,
 	NULL,
-	MBFL_ENCTYPE_MBCS | MBFL_ENCTYPE_SHFTCODE
+	MBFL_ENCTYPE_MBCS | MBFL_ENCTYPE_SHFTCODE,
+	&vtbl_utf7imap_wchar,
+	&vtbl_wchar_utf7imap
 };
 
 const struct mbfl_convert_vtbl vtbl_utf7imap_wchar = {
@@ -368,5 +370,3 @@ int mbfl_filt_conv_wchar_utf7imap_flush(mbfl_convert_filter *filter)
 	}
 	return 0;
 }
-
-

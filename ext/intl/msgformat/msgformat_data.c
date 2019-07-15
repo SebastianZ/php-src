@@ -26,7 +26,7 @@
 /* {{{ void msgformat_data_init( msgformat_data* mf_data )
  * Initialize internals of msgformat_data.
  */
-void msgformat_data_init( msgformat_data* mf_data TSRMLS_DC )
+void msgformat_data_init( msgformat_data* mf_data )
 {
 	if( !mf_data )
 		return;
@@ -35,14 +35,14 @@ void msgformat_data_init( msgformat_data* mf_data TSRMLS_DC )
 	mf_data->orig_format	= NULL;
 	mf_data->arg_types		= NULL;
 	mf_data->tz_set			= 0;
-	intl_error_reset( &mf_data->error TSRMLS_CC );
+	intl_error_reset( &mf_data->error );
 }
 /* }}} */
 
 /* {{{ void msgformat_data_free( msgformat_data* mf_data )
  * Clean up memory allocated for msgformat_data
  */
-void msgformat_data_free(msgformat_data* mf_data TSRMLS_DC)
+void msgformat_data_free(msgformat_data* mf_data)
 {
 	if (!mf_data)
 		return;
@@ -62,28 +62,28 @@ void msgformat_data_free(msgformat_data* mf_data TSRMLS_DC)
 	}
 
 	mf_data->umsgf = NULL;
-	intl_error_reset(&mf_data->error TSRMLS_CC);
+	intl_error_reset(&mf_data->error);
 }
 /* }}} */
 
 /* {{{ msgformat_data* msgformat_data_create()
  * Allocate memory for msgformat_data and initialize it with default values.
  */
-msgformat_data* msgformat_data_create( TSRMLS_D )
+msgformat_data* msgformat_data_create( void )
 {
 	msgformat_data* mf_data = ecalloc( 1, sizeof(msgformat_data) );
 
-	msgformat_data_init( mf_data TSRMLS_CC );
+	msgformat_data_init( mf_data );
 
 	return mf_data;
 }
 /* }}} */
 
 #ifdef MSG_FORMAT_QUOTE_APOS
-int msgformat_fix_quotes(UChar **spattern, uint32_t *spattern_len, UErrorCode *ec) 
+int msgformat_fix_quotes(UChar **spattern, uint32_t *spattern_len, UErrorCode *ec)
 {
 	if(*spattern && *spattern_len && u_strchr(*spattern, (UChar)'\'')) {
-		UChar *npattern = emalloc(sizeof(UChar)*(2*(*spattern_len)+1));
+		UChar *npattern = safe_emalloc(sizeof(UChar)*2, *spattern_len, sizeof(UChar));
 		uint32_t npattern_len;
 		npattern_len = umsg_autoQuoteApostrophe(*spattern, *spattern_len, npattern, 2*(*spattern_len)+1, ec);
 		efree(*spattern);
@@ -98,13 +98,3 @@ int msgformat_fix_quotes(UChar **spattern, uint32_t *spattern_len, UErrorCode *e
 	return SUCCESS;
 }
 #endif
-
-
-/*
- * Local variables:
- * tab-width: 4
- * c-basic-offset: 4
- * End:
- * vim600: noet sw=4 ts=4 fdm=marker
- * vim<600: noet sw=4 ts=4
- */

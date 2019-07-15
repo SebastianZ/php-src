@@ -2,13 +2,12 @@
 Phar: create and modify zip-based phar
 --SKIPIF--
 <?php if (!extension_loaded("phar")) die("skip"); ?>
-<?php if (!extension_loaded("spl")) die("skip SPL not available"); ?>
 --INI--
 phar.readonly=0
 --FILE--
 <?php
 
-$fname = dirname(__FILE__) . '/' . basename(__FILE__, '.php') . '.phar.zip.php';
+$fname = __DIR__ . '/' . basename(__FILE__, '.php') . '.phar.zip.php';
 $pname = 'phar://' . $fname;
 
 @unlink($fname);
@@ -17,7 +16,7 @@ file_put_contents($pname . '/a.php', "brand new!\n");
 
 if (function_exists("opcache_get_status")) {
 	$status = opcache_get_status();
-	if ($status["opcache_enabled"]) {
+	if ($status["opcache_enabled"] || (isset($status["file_cache_only"]) && $status["file_cache_only"])) {
 		ini_set("opcache.revalidate_freq", "0");
 		sleep(2);
 	}
@@ -43,8 +42,8 @@ include $pname . '/b.php';
 ?>
 ===DONE===
 --CLEAN--
-<?php unlink(dirname(__FILE__) . '/' . basename(__FILE__, '.clean.php') . '.phar.zip.php'); ?>
---EXPECTF--
+<?php unlink(__DIR__ . '/' . basename(__FILE__, '.clean.php') . '.phar.zip.php'); ?>
+--EXPECT--
 bool(true)
 brand new!
 bool(true)

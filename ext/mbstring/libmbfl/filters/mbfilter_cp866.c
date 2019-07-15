@@ -5,7 +5,7 @@
  * LICENSE NOTICES
  *
  * This file is part of "streamable kanji code filter and converter",
- * which is distributed under the terms of GNU Lesser General Public 
+ * which is distributed under the terms of GNU Lesser General Public
  * License (version 2) as published by the Free Software Foundation.
  *
  * This software is distributed in the hope that it will be useful,
@@ -24,7 +24,7 @@
 /*
  * The source code included in this files was separated from mbfilter_ru.c
  * by moriyoshi koizumi <moriyoshi@php.net> on 4 dec 2002.
- * 
+ *
  */
 
 #ifdef HAVE_CONFIG_H
@@ -45,7 +45,9 @@ const mbfl_encoding mbfl_encoding_cp866 = {
 	"CP866",
 	(const char *(*)[])&mbfl_encoding_cp866_aliases,
 	NULL,
-	MBFL_ENCTYPE_SBCS
+	MBFL_ENCTYPE_SBCS,
+	&vtbl_cp866_wchar,
+	&vtbl_wchar_cp866
 };
 
 const struct mbfl_identify_vtbl vtbl_identify_cp866 = {
@@ -145,7 +147,5 @@ static int mbfl_filt_ident_cp866(int c, mbfl_identify_filter *filter)
 		filter->flag = 0;
 	else
 		filter->flag = 1; /* not it */
-	return c;	
+	return c;
 }
-
-

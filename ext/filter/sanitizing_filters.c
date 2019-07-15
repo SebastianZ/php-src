@@ -2,7 +2,7 @@
   +----------------------------------------------------------------------+
   | PHP Version 7                                                        |
   +----------------------------------------------------------------------+
-  | Copyright (c) 1997-2014 The PHP Group                                |
+  | Copyright (c) The PHP Group                                          |
   +----------------------------------------------------------------------+
   | This source file is subject to version 3.01 of the PHP license,      |
   | that is bundled with this package in the file LICENSE, and is        |
@@ -16,8 +16,6 @@
   +----------------------------------------------------------------------+
 */
 
-/* $Id$ */
-
 #include "php_filter.h"
 #include "filter_private.h"
 #include "zend_smart_str.h"
@@ -30,7 +28,7 @@ typedef unsigned long filter_map[256];
 static void php_filter_encode_html(zval *value, const unsigned char *chars)
 {
 	smart_str str = {0};
-	int len = Z_STRLEN_P(value);
+	size_t len = Z_STRLEN_P(value);
 	unsigned char *s = (unsigned char *)Z_STRVAL_P(value);
 	unsigned char *e = s + len;
 
@@ -87,9 +85,9 @@ static void php_filter_encode_url(zval *value, const unsigned char* chars, const
 		memset(tmp, 1, 32);
 	}
 */
-	str = zend_string_alloc(3 * Z_STRLEN_P(value), 0);
-	p = str->val;
-	s = Z_STRVAL_P(value);
+	str = zend_string_safe_alloc(Z_STRLEN_P(value), 3, 0, 0);
+	p = (unsigned char *) ZSTR_VAL(str);
+	s = (unsigned char *) Z_STRVAL_P(value);
 	e = s + Z_STRLEN_P(value);
 
 	while (s < e) {
@@ -98,12 +96,12 @@ static void php_filter_encode_url(zval *value, const unsigned char* chars, const
 			*p++ = hexchars[(unsigned char) *s >> 4];
 			*p++ = hexchars[(unsigned char) *s & 15];
 		} else {
-			*p++ = *s;	
+			*p++ = *s;
 		}
-		s++;	
+		s++;
 	}
 	*p = '\0';
-	str->len = p - (unsigned char *)str->val;
+	ZSTR_LEN(str) = p - (unsigned char *)ZSTR_VAL(str);
 	zval_ptr_dtor(value);
 	ZVAL_NEW_STR(value, str);
 }
@@ -111,11 +109,12 @@ static void php_filter_encode_url(zval *value, const unsigned char* chars, const
 static void php_filter_strip(zval *value, zend_long flags)
 {
 	unsigned char *str;
-	int   i, c;
+	size_t i;
+	int c;
 	zend_string *buf;
-	
+
 	/* Optimization for if no strip flags are set */
-	if (! ((flags & FILTER_FLAG_STRIP_LOW) || (flags & FILTER_FLAG_STRIP_HIGH)) ) {
+	if (!(flags & (FILTER_FLAG_STRIP_LOW | FILTER_FLAG_STRIP_HIGH | FILTER_FLAG_STRIP_BACKTICK))) {
 		return;
 	}
 
@@ -123,17 +122,17 @@ static void php_filter_strip(zval *value, zend_long flags)
 	buf = zend_string_alloc(Z_STRLEN_P(value) + 1, 0);
 	c = 0;
 	for (i = 0; i < Z_STRLEN_P(value); i++) {
-		if ((str[i] > 127) && (flags & FILTER_FLAG_STRIP_HIGH)) {
+		if ((str[i] >= 127) && (flags & FILTER_FLAG_STRIP_HIGH)) {
 		} else if ((str[i] < 32) && (flags & FILTER_FLAG_STRIP_LOW)) {
 		} else if ((str[i] == '`') && (flags & FILTER_FLAG_STRIP_BACKTICK)) {
 		} else {
-			buf->val[c] = str[i];
+			ZSTR_VAL(buf)[c] = str[i];
 			++c;
 		}
 	}
 	/* update zval string data */
-	buf->val[c] = '\0';
-	buf->len = c;
+	ZSTR_VAL(buf)[c] = '\0';
+	ZSTR_LEN(buf) = c;
 	zval_ptr_dtor(value);
 	ZVAL_NEW_STR(value, buf);
 }
@@ -147,7 +146,7 @@ static void filter_map_init(filter_map *map)
 
 static void filter_map_update(filter_map *map, int flag, const unsigned char *allowed_list)
 {
-	int l, i;
+	size_t l, i;
 
 	l = strlen((const char*)allowed_list);
 	for (i = 0; i < l; ++i) {
@@ -158,21 +157,21 @@ static void filter_map_update(filter_map *map, int flag, const unsigned char *al
 static void filter_map_apply(zval *value, filter_map *map)
 {
 	unsigned char *str;
-	int   i, c;
+	size_t i, c;
 	zend_string *buf;
-	
+
 	str = (unsigned char *)Z_STRVAL_P(value);
 	buf = zend_string_alloc(Z_STRLEN_P(value) + 1, 0);
 	c = 0;
 	for (i = 0; i < Z_STRLEN_P(value); i++) {
 		if ((*map)[str[i]]) {
-			buf->val[c] = str[i];
+			ZSTR_VAL(buf)[c] = str[i];
 			++c;
 		}
 	}
 	/* update zval string data */
-	buf->val[c] = '\0';
-	buf->len = c;
+	ZSTR_VAL(buf)[c] = '\0';
+	ZSTR_LEN(buf) = c;
 	zval_ptr_dtor(value);
 	ZVAL_NEW_STR(value, buf);
 }
@@ -211,11 +210,11 @@ void php_filter_string(PHP_INPUT_FILTER_PARAM_DECL)
 	Z_STRLEN_P(value) = new_len;
 
 	if (new_len == 0) {
-		zval_dtor(value);
+		zval_ptr_dtor(value);
 		if (flags & FILTER_FLAG_EMPTY_STRING_NULL) {
 			ZVAL_NULL(value);
 		} else {
-			ZVAL_EMPTY_STRING(value);			
+			ZVAL_EMPTY_STRING(value);
 		}
 		return;
 	}
@@ -248,8 +247,8 @@ void php_filter_special_chars(PHP_INPUT_FILTER_PARAM_DECL)
 	if (flags & FILTER_FLAG_ENCODE_HIGH) {
 		memset(enc + 127, 1, sizeof(enc) - 127);
 	}
-	
-	php_filter_encode_html(value, enc);	
+
+	php_filter_encode_html(value, enc);
 }
 /* }}} */
 
@@ -258,13 +257,13 @@ void php_filter_full_special_chars(PHP_INPUT_FILTER_PARAM_DECL)
 {
 	zend_string *buf;
 	int quotes;
-	
+
 	if (!(flags & FILTER_FLAG_NO_ENCODE_QUOTES)) {
 		quotes = ENT_QUOTES;
 	} else {
 		quotes = ENT_NOQUOTES;
 	}
-	buf = php_escape_html_entities_ex(Z_STRVAL_P(value), Z_STRLEN_P(value), 1, quotes, SG(default_charset), 0 TSRMLS_CC);
+	buf = php_escape_html_entities_ex((unsigned char *) Z_STRVAL_P(value), Z_STRLEN_P(value), 1, quotes, SG(default_charset), 0);
 	zval_ptr_dtor(value);
 	ZVAL_STR(value, buf);
 }
@@ -289,9 +288,9 @@ void php_filter_unsafe_raw(PHP_INPUT_FILTER_PARAM_DECL)
 			memset(enc + 127, 1, sizeof(enc) - 127);
 		}
 
-		php_filter_encode_html(value, enc);	
+		php_filter_encode_html(value, enc);
 	} else if (flags & FILTER_FLAG_EMPTY_STRING_NULL && Z_STRLEN_P(value) == 0) {
-		zval_dtor(value);
+		zval_ptr_dtor(value);
 		ZVAL_NULL(value);
 	}
 }
@@ -367,24 +366,17 @@ void php_filter_number_float(PHP_INPUT_FILTER_PARAM_DECL)
 }
 /* }}} */
 
-/* {{{ php_filter_magic_quotes */
-void php_filter_magic_quotes(PHP_INPUT_FILTER_PARAM_DECL)
+/* {{{ php_filter_add_slashes */
+void php_filter_add_slashes(PHP_INPUT_FILTER_PARAM_DECL)
 {
+	/* This filter is used by both 'add_slashes' & 'magic_quotes' (legacy) */
+
 	zend_string *buf;
-	
+
 	/* just call php_addslashes quotes */
-	buf = php_addslashes(Z_STRVAL_P(value), Z_STRLEN_P(value), 0 TSRMLS_CC);
+	buf = php_addslashes(Z_STR_P(value));
 
 	zval_ptr_dtor(value);
 	ZVAL_STR(value, buf);
 }
 /* }}} */
-
-/*
- * Local variables:
- * tab-width: 4
- * c-basic-offset: 4
- * End:
- * vim600: noet sw=4 ts=4 fdm=marker
- * vim<600: noet sw=4 ts=4
- */

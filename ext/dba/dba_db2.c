@@ -2,7 +2,7 @@
    +----------------------------------------------------------------------+
    | PHP Version 7                                                        |
    +----------------------------------------------------------------------+
-   | Copyright (c) 1997-2014 The PHP Group                                |
+   | Copyright (c) The PHP Group                                          |
    +----------------------------------------------------------------------+
    | This source file is subject to version 3.01 of the PHP license,      |
    | that is bundled with this package in the file LICENSE, and is        |
@@ -15,8 +15,6 @@
    | Author: Sascha Schumann <sascha@schumann.cx>                         |
    +----------------------------------------------------------------------+
  */
-
-/* $Id$ */
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -60,11 +58,11 @@ DBA_OPEN_FUNC(db2)
 	type = info->mode == DBA_READER ? DB_UNKNOWN :
 		info->mode == DBA_TRUNC ? DB_BTREE :
 		s ? DB_BTREE : DB_UNKNOWN;
-	  
+
 	gmode = info->mode == DBA_READER ? DB_RDONLY :
-		(info->mode == DBA_CREAT && s) ? DB_CREATE : 
+		(info->mode == DBA_CREAT && s) ? DB_CREATE :
 		(info->mode == DBA_CREAT && !s) ? 0 :
-		info->mode == DBA_WRITER ? 0         : 
+		info->mode == DBA_WRITER ? 0         :
 		info->mode == DBA_TRUNC ? DB_CREATE | DB_TRUNCATE : -1;
 
 	if (gmode == -1) {
@@ -72,8 +70,7 @@ DBA_OPEN_FUNC(db2)
 	}
 
 	if (info->argc > 0) {
-		convert_to_long_ex(&info->argv[0]);
-		filemode = Z_LVAL(info->argv[0]);
+		filemode = zval_get_long(&info->argv[0]);
 	}
 
 	if (db_open(info->path, type, gmode, filemode, NULL, NULL, &dbp)) {
@@ -89,8 +86,8 @@ DBA_OPEN_FUNC(db2)
 DBA_CLOSE_FUNC(db2)
 {
 	DB2_DATA;
-	
-	if (dba->cursor) 
+
+	if (dba->cursor)
 		dba->cursor->c_close(dba->cursor);
 	dba->dbp->close(dba->dbp, 0);
 	pefree(dba, info->flags&DBA_PERSISTENT);
@@ -101,7 +98,7 @@ DBA_FETCH_FUNC(db2)
 	DBT gval = {0};
 	DB2_DATA;
 	DB2_GKEY;
-	
+
 	if (dba->dbp->get(dba->dbp, NULL, &gkey, &gval, 0)) {
 		return NULL;
 	}
@@ -115,11 +112,11 @@ DBA_UPDATE_FUNC(db2)
 	DBT gval = {0};
 	DB2_DATA;
 	DB2_GKEY;
-	
+
 	gval.data = (char *) val;
 	gval.size = vallen;
 
-	if (dba->dbp->put(dba->dbp, NULL, &gkey, &gval, 
+	if (dba->dbp->put(dba->dbp, NULL, &gkey, &gval,
 				mode == 1 ? DB_NOOVERWRITE : 0)) {
 		return FAILURE;
 	}
@@ -131,7 +128,7 @@ DBA_EXISTS_FUNC(db2)
 	DBT gval = {0};
 	DB2_DATA;
 	DB2_GKEY;
-	
+
 	if (dba->dbp->get(dba->dbp, NULL, &gkey, &gval, 0)) {
 		return FAILURE;
 	}
@@ -164,7 +161,7 @@ DBA_FIRSTKEY_FUNC(db2)
 	}
 
 	/* we should introduce something like PARAM_PASSTHRU... */
-	return dba_nextkey_db2(info, newlen TSRMLS_CC);
+	return dba_nextkey_db2(info, newlen);
 }
 
 DBA_NEXTKEY_FUNC(db2)
@@ -198,12 +195,3 @@ DBA_INFO_FUNC(db2)
 }
 
 #endif
-
-/*
- * Local variables:
- * tab-width: 4
- * c-basic-offset: 4
- * End:
- * vim600: sw=4 ts=4 fdm=marker
- * vim<600: sw=4 ts=4
- */

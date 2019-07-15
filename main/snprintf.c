@@ -2,7 +2,7 @@
   +----------------------------------------------------------------------+
   | PHP Version 7                                                        |
   +----------------------------------------------------------------------+
-  | Copyright (c) 1997-2014 The PHP Group                                |
+  | Copyright (c) The PHP Group                                          |
   +----------------------------------------------------------------------+
   | This source file is subject to version 3.01 of the PHP license,      |
   | that is bundled with this package in the file LICENSE, and is        |
@@ -15,8 +15,6 @@
   | Author:                                                              |
   +----------------------------------------------------------------------+
 */
-
-/* $Id$ */
 
 #define _GNU_SOURCE
 #include "php.h"
@@ -36,11 +34,12 @@
 #include <inttypes.h>
 #endif
 
-#ifdef HAVE_LOCALE_H
 #include <locale.h>
-#define LCONV_DECIMAL_POINT (*lconv->decimal_point)
+#ifdef ZTS
+#include "ext/standard/php_string.h"
+#define LCONV_DECIMAL_POINT (*lconv.decimal_point)
 #else
-#define LCONV_DECIMAL_POINT '.'
+#define LCONV_DECIMAL_POINT (*lconv->decimal_point)
 #endif
 
 /*
@@ -138,8 +137,12 @@ PHPAPI char *php_gcvt(double value, int ndigit, char dec_point, char exponent, c
 {
 	char *digits, *dst, *src;
 	int i, decpt, sign;
+	int mode = ndigit >= 0 ? 2 : 0;
 
-	digits = zend_dtoa(value, 2, ndigit, &decpt, &sign, NULL);
+	if (mode == 0) {
+		ndigit = 17;
+	}
+	digits = zend_dtoa(value, mode, ndigit, &decpt, &sign, NULL);
 	if (decpt == 9999) {
 		/*
 		 * Infinity or NaN, convert to inf or nan with sign.
@@ -184,8 +187,7 @@ PHPAPI char *php_gcvt(double value, int ndigit, char dec_point, char exponent, c
 			*dst = '\0';
 		} else {
 			/* XXX - optimize */
-			for (sign = decpt, i = 0; (sign /= 10) != 0; i++)
-				continue;
+			for (sign = decpt, i = 0; (sign /= 10) != 0; i++);
 			dst[i + 1] = '\0';
 			while (decpt != 0) {
 				dst[i--] = '0' + decpt % 10;
@@ -311,7 +313,7 @@ PHPAPI char *php_gcvt(double value, int ndigit, char dec_point, char exponent, c
  * is declared as buf[ 100 ], buf_end should be &buf[ 100 ])
  */
 /* char * ap_php_conv_10() {{{ */
-char * ap_php_conv_10(register wide_int num, register bool_int is_unsigned,
+PHPAPI char * ap_php_conv_10(register wide_int num, register bool_int is_unsigned,
 	   register bool_int * is_negative, char *buf_end, register size_t *len)
 {
 	register char *p = buf_end;
@@ -474,13 +476,13 @@ PHPAPI char * php_conv_fp(register char format, register double num,
  * which is a pointer to the END of the buffer + 1 (i.e. if the buffer
  * is declared as buf[ 100 ], buf_end should be &buf[ 100 ])
  */
-char * ap_php_conv_p2(register u_wide_int num, register int nbits, char format, char *buf_end, register size_t *len) /* {{{ */
+PHPAPI char * ap_php_conv_p2(register u_wide_int num, register int nbits, char format, char *buf_end, register size_t *len) /* {{{ */
 {
 	register int mask = (1 << nbits) - 1;
 	register char *p = buf_end;
-	static char low_digits[] = "0123456789abcdef";
-	static char upper_digits[] = "0123456789ABCDEF";
-	register char *digits = (format == 'X') ? upper_digits : low_digits;
+	static const char low_digits[] = "0123456789abcdef";
+	static const char upper_digits[] = "0123456789ABCDEF";
+	register const char *digits = (format == 'X') ? upper_digits : low_digits;
 
 	do {
 		*--p = digits[num & mask];
@@ -550,11 +552,11 @@ typedef struct buf_area buffy;
  * to be printed.
  */
 #define FIX_PRECISION( adjust, precision, s, s_len )	\
-    if ( adjust )					\
-	while ( s_len < precision )			\
-	{						\
-	    *--s = '0' ;				\
-	    s_len++ ;					\
+    if ( adjust )						\
+	while ( s_len < (size_t)precision )	\
+	{									\
+	    *--s = '0' ;					\
+	    s_len++ ;						\
 	}
 
 /*
@@ -566,7 +568,7 @@ typedef struct buf_area buffy;
 	    INS_CHAR( ch, sp, bep, cc ) ;	\
 	    width-- ;				\
 	}					\
-	while ( width > len )
+	while ( (size_t)width > len )
 
 /*
  * Prefix the character ch to the string str
@@ -606,7 +608,9 @@ static int format_converter(register buffy * odp, const char *fmt, va_list ap) /
 	char num_buf[NUM_BUF_SIZE];
 	char char_buf[2];			/* for printing %% and %<unknown> */
 
-#ifdef HAVE_LOCALE_H
+#ifdef ZTS
+	struct lconv lconv;
+#else
 	struct lconv *lconv = NULL;
 #endif
 
@@ -693,7 +697,7 @@ static int format_converter(register buffy * odp, const char *fmt, va_list ap) /
 							precision = 0;
 					} else
 						precision = 0;
-					
+
 					if (precision > FORMAT_CONV_MAX_PRECISION) {
 						precision = FORMAT_CONV_MAX_PRECISION;
 					}
@@ -787,17 +791,16 @@ static int format_converter(register buffy * odp, const char *fmt, va_list ap) /
 			 */
 			switch (*fmt) {
 				case 'Z': {
-				    TSRMLS_FETCH();
-				    zvp = (zval*) va_arg(ap, zval*);
-					free_zcopy = zend_make_printable_zval(zvp, &zcopy TSRMLS_CC);
+					zvp = (zval*) va_arg(ap, zval*);
+					free_zcopy = zend_make_printable_zval(zvp, &zcopy);
 					if (free_zcopy) {
 						zvp = &zcopy;
 					}
 					s_len = Z_STRLEN_P(zvp);
 					s = Z_STRVAL_P(zvp);
-					if (adjust_precision && precision < s_len) {
+					if (adjust_precision && (size_t)precision < s_len) {
 						s_len = precision;
-					}	
+					}
 					break;
 				}
 				case 'u':
@@ -983,7 +986,7 @@ static int format_converter(register buffy * odp, const char *fmt, va_list ap) /
 					s = va_arg(ap, char *);
 					if (s != NULL) {
 						s_len = strlen(s);
-						if (adjust_precision && precision < s_len) {
+						if (adjust_precision && (size_t)precision < s_len) {
 							s_len = precision;
 						}
 					} else {
@@ -1016,7 +1019,9 @@ static int format_converter(register buffy * odp, const char *fmt, va_list ap) /
 						s = "INF";
 						s_len = 3;
 					} else {
-#ifdef HAVE_LOCALE_H
+#ifdef ZTS
+						localeconv_r(&lconv);
+#else
 						if (!lconv) {
 							lconv = localeconv();
 						}
@@ -1073,7 +1078,9 @@ static int format_converter(register buffy * odp, const char *fmt, va_list ap) /
 					/*
 					 * * We use &num_buf[ 1 ], so that we have room for the sign
 					 */
-#ifdef HAVE_LOCALE_H
+#ifdef ZTS
+					localeconv_r(&lconv);
+#else
 					if (!lconv) {
 						lconv = localeconv();
 					}
@@ -1174,7 +1181,7 @@ fmt_error:
 				*--s = prefix_char;
 				s_len++;
 			}
-			if (adjust_width && adjust == RIGHT && min_width > s_len) {
+			if (adjust_width && adjust == RIGHT && (size_t)min_width > s_len) {
 				if (pad_char == '0' && prefix_char != NUL) {
 					INS_CHAR(*s, sp, bep, cc)
 						s++;
@@ -1191,10 +1198,10 @@ fmt_error:
 				s++;
 			}
 
-			if (adjust_width && adjust == LEFT && min_width > s_len)
+			if (adjust_width && adjust == LEFT && (size_t)min_width > s_len)
 				PAD(min_width, s_len, pad_char);
 			if (free_zcopy) {
-				zval_dtor(&zcopy);
+				zval_ptr_dtor_str(&zcopy);
 			}
 		}
 skip_output:
@@ -1241,14 +1248,14 @@ static void strx_printv(int *ccp, char *buf, size_t len, const char *format, va_
 
 PHPAPI int ap_php_slprintf(char *buf, size_t len, const char *format,...) /* {{{ */
 {
-	unsigned int cc;
+	int cc;
 	va_list ap;
 
 	va_start(ap, format);
 	strx_printv(&cc, buf, len, format, ap);
 	va_end(ap);
-	if (cc >= len) {
-		cc = len -1;
+	if ((size_t)cc >= len) {
+		cc = (int)len -1;
 		buf[cc] = '\0';
 	}
 	return cc;
@@ -1257,11 +1264,11 @@ PHPAPI int ap_php_slprintf(char *buf, size_t len, const char *format,...) /* {{{
 
 PHPAPI int ap_php_vslprintf(char *buf, size_t len, const char *format, va_list ap) /* {{{ */
 {
-	unsigned int cc;
+	int cc;
 
 	strx_printv(&cc, buf, len, format, ap);
-	if (cc >= len) {
-		cc = len -1;
+	if ((size_t)cc >= len) {
+		cc = (int)len -1;
 		buf[cc] = '\0';
 	}
 	return cc;
@@ -1324,12 +1331,3 @@ PHPAPI int ap_php_asprintf(char **buf, const char *format, ...) /* {{{ */
 	return cc;
 }
 /* }}} */
-
-/*
- * Local variables:
- * tab-width: 4
- * c-basic-offset: 4
- * End:
- * vim600: sw=4 ts=4 fdm=marker
- * vim<600: sw=4 ts=4
- */

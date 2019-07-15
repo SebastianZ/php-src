@@ -1,8 +1,8 @@
-/* 
+/*
    +----------------------------------------------------------------------+
    | PHP Version 7                                                        |
    +----------------------------------------------------------------------+
-   | Copyright (c) 1997-2014 The PHP Group                                |
+   | Copyright (c) The PHP Group                                          |
    +----------------------------------------------------------------------+
    | This source file is subject to version 3.01 of the PHP license,      |
    | that is bundled with this package in the file LICENSE, and is        |
@@ -12,11 +12,9 @@
    | obtain it through the world-wide-web, please send a note to          |
    | license@php.net so we can mail you a copy immediately.               |
    +----------------------------------------------------------------------+
-   | Author: Andi Gutmans <andi@zend.com>                                 |
+   | Author: Andi Gutmans <andi@php.net>                                  |
    +----------------------------------------------------------------------+
 */
-
-/* $Id$ */
 
 #ifndef PHP_BCMATH_H
 #define PHP_BCMATH_H
@@ -25,6 +23,9 @@
 
 extern zend_module_entry bcmath_module_entry;
 #define phpext_bcmath_ptr &bcmath_module_entry
+
+#include "php_version.h"
+#define PHP_BCMATH_VERSION PHP_VERSION
 
 PHP_MINIT_FUNCTION(bcmath);
 PHP_MSHUTDOWN_FUNCTION(bcmath);
@@ -47,13 +48,12 @@ ZEND_BEGIN_MODULE_GLOBALS(bcmath)
 	bc_num _two_;
 	zend_long bc_precision;
 ZEND_END_MODULE_GLOBALS(bcmath)
-	
-#ifdef ZTS
-# define BCG(v) TSRMG(bcmath_globals_id, zend_bcmath_globals *, v)
-#else
-# define BCG(v) (bcmath_globals.v)
+
+#if defined(ZTS) && defined(COMPILE_DL_BCMATH)
+ZEND_TSRMLS_CACHE_EXTERN()
 #endif
 
 ZEND_EXTERN_MODULE_GLOBALS(bcmath)
+#define BCG(v) ZEND_MODULE_GLOBALS_ACCESSOR(bcmath, v)
 
 #endif /* PHP_BCMATH_H */

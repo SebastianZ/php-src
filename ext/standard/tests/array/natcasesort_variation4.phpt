@@ -1,10 +1,5 @@
 --TEST--
 Test natcasesort() function : usage variations - different string types
---SKIPIF--
-<?php
-if (substr(PHP_OS, 0, 3) == 'WIN') {
-  die("skip Output tested contains chars that are not shown the same on windows concole (ESC and co)");
-}
 --FILE--
 <?php
 /* Prototype  : bool natcasesort(array &$array_arg)
@@ -33,7 +28,7 @@ foreach ($inputs as $array_arg) {
 
 echo "Done";
 ?>
---EXPECTF--
+--EXPECT--
 *** Testing natcasesort() : usage variation ***
 bool(true)
 array(11) {
@@ -41,15 +36,15 @@ array(11) {
   NULL
   [1]=>
   NULL
+  [5]=>
+  string(1) ""
   [6]=>
   string(1) "
 "
-  [10]=>
-  string(1) ""
   [7]=>
   string(1) "	"
-  [5]=>
-  string(1) ""
+  [10]=>
+  string(1) ""
   [4]=>
   string(1) ""
   [2]=>
@@ -65,16 +60,16 @@ bool(true)
 array(12) {
   [3]=>
   string(5) "apple"
-  [11]=>
-  string(6) "BANANA"
   [2]=>
   string(6) "banana"
+  [11]=>
+  string(6) "BANANA"
   [0]=>
   string(5) "lemoN"
-  [10]=>
-  string(6) "oraNGe"
   [1]=>
   string(6) "Orange"
+  [10]=>
+  string(6) "oraNGe"
   [4]=>
   string(4) "Test"
   [6]=>

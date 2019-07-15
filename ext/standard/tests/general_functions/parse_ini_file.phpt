@@ -5,11 +5,9 @@ parse_ini_file() multiple calls
 --FILE--
 <?php
 
-$filename = dirname(__FILE__)."/parse_ini_file.dat";
+$filename = __DIR__."/parse_ini_file.dat";
 @unlink($filename); /* Make sure the file really does not exist! */
 
-var_dump(parse_ini_file());
-var_dump(parse_ini_file(1,1,1,1));
 var_dump(parse_ini_file($filename));
 var_dump(parse_ini_file($filename, true));
 
@@ -110,7 +108,7 @@ $ini = <<<'INI'
 foo=bar1
 ; comment
 _foo=bar2
-# comment
+; comment
 foo_=bar3
 INI;
 file_put_contents($filename, $ini);
@@ -120,17 +118,11 @@ var_dump(parse_ini_file($filename, true));
 @unlink($filename);
 echo "Done\n";
 ?>
---EXPECTF--	
-Warning: parse_ini_file() expects at least 1 parameter, 0 given in %sparse_ini_file.php on line 6
+--EXPECTF--
+Warning: parse_ini_file(%sparse_ini_file.dat): failed to open stream: No such file or directory in %sparse_ini_file.php on line %d
 bool(false)
 
-Warning: parse_ini_file() expects at most 3 parameters, 4 given in %sparse_ini_file.php on line 7
-bool(false)
-
-Warning: parse_ini_file(%sparse_ini_file.dat): failed to open stream: No such file or directory in %sparse_ini_file.php on line 8
-bool(false)
-
-Warning: parse_ini_file(%sparse_ini_file.dat): failed to open stream: No such file or directory in %sparse_ini_file.php on line 9
+Warning: parse_ini_file(%sparse_ini_file.dat): failed to open stream: No such file or directory in %sparse_ini_file.php on line %d
 bool(false)
 array(1) {
   ["test"]=>
@@ -138,11 +130,11 @@ array(1) {
 }
 
 Warning: syntax error, unexpected '='%sparse_ini_file.dat on line 2
- in %sparse_ini_file.php on line 20
+ in %sparse_ini_file.php on line %d
 bool(false)
 
 Warning: syntax error, unexpected '='%sparse_ini_file.dat on line 2
- in %sparse_ini_file.php on line 26
+ in %sparse_ini_file.php on line %d
 bool(false)
 array(1) {
   ["test"]=>
@@ -205,8 +197,6 @@ array(3) {
   ["foo_"]=>
   string(4) "bar3"
 }
-
-Deprecated: Comments starting with '#' are deprecated in %s
 array(3) {
   ["foo"]=>
   string(4) "bar1"

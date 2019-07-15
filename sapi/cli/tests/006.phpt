@@ -1,10 +1,13 @@
 --TEST--
 show information about extension
 --SKIPIF--
-<?php 
-include "skipif.inc"; 
-if (!extension_loaded("reflection") || !extension_loaded("session")) {
-	die("skip reflection and session extensions required");
+<?php
+include "skipif.inc";
+if (!extension_loaded("session")) {
+	die("skip session extension required");
+}
+if (PCRE_JIT_SUPPORT == false) {
+	die ("skip not pcre jit support builtin");
 }
 ?>
 --INI--
@@ -20,12 +23,12 @@ var_dump(`$php -n --re pcre`);
 
 echo "Done\n";
 ?>
---EXPECTF--	
+--EXPECTF--
 string(44) "Exception: Extension unknown does not exist
 "
 string(37) "Exception: Extension  does not exist
 "
-string(%d) "Extension [ <persistent> extension #%d pcre version <no_version> ] {
+string(%d) "Extension [ <persistent> extension #%d pcre version %s ] {
 
   - INI {
     Entry [ pcre.backtrack_limit <ALL> ]
@@ -39,21 +42,26 @@ string(%d) "Extension [ <persistent> extension #%d pcre version <no_version> ] {
     }
   }
 
-  - Constants [14] {
-    Constant [ integer PREG_PATTERN_ORDER ] { 1 }
-    Constant [ integer PREG_SET_ORDER ] { 2 }
-    Constant [ integer PREG_OFFSET_CAPTURE ] { 256 }
-    Constant [ integer PREG_SPLIT_NO_EMPTY ] { 1 }
-    Constant [ integer PREG_SPLIT_DELIM_CAPTURE ] { 2 }
-    Constant [ integer PREG_SPLIT_OFFSET_CAPTURE ] { 4 }
-    Constant [ integer PREG_GREP_INVERT ] { 1 }
-    Constant [ integer PREG_NO_ERROR ] { 0 }
-    Constant [ integer PREG_INTERNAL_ERROR ] { 1 }
-    Constant [ integer PREG_BACKTRACK_LIMIT_ERROR ] { 2 }
-    Constant [ integer PREG_RECURSION_LIMIT_ERROR ] { 3 }
-    Constant [ integer PREG_BAD_UTF8_ERROR ] { 4 }
-    Constant [ integer PREG_BAD_UTF8_OFFSET_ERROR ] { 5 }
+  - Constants [19] {
+    Constant [ int PREG_PATTERN_ORDER ] { 1 }
+    Constant [ int PREG_SET_ORDER ] { 2 }
+    Constant [ int PREG_OFFSET_CAPTURE ] { 256 }
+    Constant [ int PREG_UNMATCHED_AS_NULL ] { 512 }
+    Constant [ int PREG_SPLIT_NO_EMPTY ] { 1 }
+    Constant [ int PREG_SPLIT_DELIM_CAPTURE ] { 2 }
+    Constant [ int PREG_SPLIT_OFFSET_CAPTURE ] { 4 }
+    Constant [ int PREG_GREP_INVERT ] { 1 }
+    Constant [ int PREG_NO_ERROR ] { 0 }
+    Constant [ int PREG_INTERNAL_ERROR ] { 1 }
+    Constant [ int PREG_BACKTRACK_LIMIT_ERROR ] { 2 }
+    Constant [ int PREG_RECURSION_LIMIT_ERROR ] { 3 }
+    Constant [ int PREG_BAD_UTF8_ERROR ] { 4 }
+    Constant [ int PREG_BAD_UTF8_OFFSET_ERROR ] { 5 }
+    Constant [ int PREG_JIT_STACKLIMIT_ERROR ] { 6 }
     Constant [ string PCRE_VERSION ] { %s }
+    Constant [ int PCRE_VERSION_MAJOR ] { %d }
+    Constant [ int PCRE_VERSION_MINOR ] { %d }
+    Constant [ bool PCRE_JIT_SUPPORT ] { %d }
   }
 
   - Functions {
@@ -89,12 +97,23 @@ string(%d) "Extension [ <persistent> extension #%d pcre version <no_version> ] {
     }
     Function [ <internal:pcre> function preg_replace_callback ] {
 
-      - Parameters [5] {
+      - Parameters [6] {
         Parameter #0 [ <required> $regex ]
         Parameter #1 [ <required> $callback ]
         Parameter #2 [ <required> $subject ]
         Parameter #3 [ <optional> $limit ]
         Parameter #4 [ <optional> &$count ]
+        Parameter #5 [ <optional> $flags ]
+      }
+    }
+    Function [ <internal:pcre> function preg_replace_callback_array ] {
+
+      - Parameters [5] {
+        Parameter #0 [ <required> $pattern ]
+        Parameter #1 [ <required> $subject ]
+        Parameter #2 [ <optional> $limit ]
+        Parameter #3 [ <optional> &$count ]
+        Parameter #4 [ <optional> $flags ]
       }
     }
     Function [ <internal:pcre> function preg_filter ] {

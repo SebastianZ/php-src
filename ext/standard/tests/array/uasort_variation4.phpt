@@ -3,7 +3,7 @@ Test uasort() function : usage variations - sort different numeric values
 --FILE--
 <?php
 /* Prototype  : bool uasort(array $array_arg, string $cmp_function)
- * Description: Sort an array with a user-defined comparison function and maintain index association 
+ * Description: Sort an array with a user-defined comparison function and maintain index association
  * Source code: ext/standard/array.c
 */
 
@@ -42,7 +42,7 @@ var_dump( uasort($int_values, 'cmp_function') );  // expecting: bool(true)
 var_dump($int_values);
 
 // Octal array
-$octal_values = array(0 => 056, 1 => 023, 2 => 090, 3 => 015, 4 => -045, 5 => 01, 6 => -078);
+$octal_values = array(0 => 056, 1 => 023, 2 => 00, 3 => 015, 4 => -045, 5 => 01, 6 => -07);
 echo "-- Sorting Octal array --\n";
 var_dump( uasort($octal_values, 'cmp_function') );  // expecting: bool(true)
 var_dump($octal_values);
@@ -67,7 +67,7 @@ var_dump($empty_array);
 
 echo "Done"
 ?>
---EXPECTF--
+--EXPECT--
 *** Testing uasort() : different numeric arrays as 'array_arg' ***
 -- Sorting Integer array --
 bool(true)

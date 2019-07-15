@@ -1,5 +1,3 @@
-
-	/* $Id: fpm_conf.h,v 1.12.2.2 2008/12/13 03:46:49 anight Exp $ */
 	/* (c) 2007,2008 Andrei Nigmatulin */
 
 #ifndef FPM_CONF_H
@@ -31,6 +29,8 @@ struct fpm_global_config_s {
 	int syslog_facility;
 #endif
 	int log_level;
+	int log_limit;
+	int log_buffering;
 	int emergency_restart_threshold;
 	int emergency_restart_interval;
 	int process_control_timeout;
@@ -58,11 +58,13 @@ struct fpm_worker_pool_config_s {
 	char *group;
 	char *listen_address;
 	int listen_backlog;
+	/* Using chown */
 	char *listen_owner;
 	char *listen_group;
 	char *listen_mode;
 	char *listen_allowed_clients;
 	int process_priority;
+	int process_dumpable;
 	int pm;
 	int pm_max_children;
 	int pm_start_servers;
@@ -77,12 +79,14 @@ struct fpm_worker_pool_config_s {
 	char *access_format;
 	char *slowlog;
 	int request_slowlog_timeout;
+	int request_slowlog_trace_depth;
 	int request_terminate_timeout;
 	int rlimit_files;
 	int rlimit_core;
 	char *chroot;
 	char *chdir;
 	int catch_workers_output;
+	int decorate_workers_output;
 	int clear_env;
 	char *security_limit_extensions;
 	struct key_value_s *env;
@@ -90,6 +94,11 @@ struct fpm_worker_pool_config_s {
 	struct key_value_s *php_values;
 #ifdef HAVE_APPARMOR
 	char *apparmor_hat;
+#endif
+#ifdef HAVE_FPM_ACL
+	/* Using Posix ACL */
+	char *listen_acl_users;
+	char *listen_acl_groups;
 #endif
 };
 
@@ -111,4 +120,3 @@ int fpm_conf_write_pid();
 int fpm_conf_unlink_pid();
 
 #endif
-

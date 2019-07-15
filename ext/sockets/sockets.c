@@ -2,7 +2,7 @@
    +----------------------------------------------------------------------+
    | PHP Version 7                                                        |
    +----------------------------------------------------------------------+
-   | Copyright (c) 1997-2014 The PHP Group                                |
+   | Copyright (c) The PHP Group                                          |
    +----------------------------------------------------------------------+
    | This source file is subject to version 3.01 of the PHP license,      |
    | that is bundled with this package in the file LICENSE, and is        |
@@ -19,8 +19,6 @@
    | WinSock: Daniel Beulshausen <daniel@php4win.de>                      |
    +----------------------------------------------------------------------+
  */
-
-/* $Id$ */
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -39,6 +37,7 @@
 # include <Ws2tcpip.h>
 # include "php_sockets.h"
 # include <win32/sockets.h>
+# include <win32/winutil.h>
 #else
 # include <sys/types.h>
 # include <sys/socket.h>
@@ -96,6 +95,9 @@ ZEND_DECLARE_MODULE_GLOBALS(sockets)
 
 static int le_socket;
 #define le_socket_name php_sockets_le_socket_name
+
+static int le_addrinfo;
+#define le_addrinfo_name php_sockets_le_addrinfo_name
 
 /* {{{ arginfo */
 ZEND_BEGIN_ARG_INFO_EX(arginfo_socket_select, 0, 0, 4)
@@ -251,6 +253,10 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_socket_import_stream, 0, 0, 1)
 	ZEND_ARG_INFO(0, stream)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_socket_export_stream, 0, 0, 1)
+	ZEND_ARG_INFO(0, socket)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_socket_sendmsg, 0, 0, 3)
 	ZEND_ARG_INFO(0, socket)
 	ZEND_ARG_INFO(0, msghdr)
@@ -267,9 +273,43 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_socket_cmsg_space, 0, 0, 2)
 	ZEND_ARG_INFO(0, level)
 	ZEND_ARG_INFO(0, type)
 ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_socket_addrinfo_lookup, 0, 0, 1)
+	ZEND_ARG_INFO(0, host)
+	ZEND_ARG_INFO(0, service)
+	ZEND_ARG_INFO(0, hints)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_socket_addrinfo_connect, 0, 0, 1)
+	ZEND_ARG_INFO(0, addr)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_socket_addrinfo_bind, 0, 0, 1)
+	ZEND_ARG_INFO(0, addr)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_socket_addrinfo_explain, 0, 0, 1)
+	ZEND_ARG_INFO(0, addr)
+ZEND_END_ARG_INFO()
+
+#ifdef PHP_WIN32
+ZEND_BEGIN_ARG_INFO_EX(arginfo_socket_wsaprotocol_info_export, 0, 0, 2)
+	ZEND_ARG_INFO(0, socket)
+	ZEND_ARG_INFO(0, target_pid)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_socket_wsaprotocol_info_import, 0, 0, 1)
+	ZEND_ARG_INFO(0, info_id)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_socket_wsaprotocol_info_release, 0, 0, 1)
+	ZEND_ARG_INFO(0, info_id)
+ZEND_END_ARG_INFO()
+#endif
 /* }}} */
 
 static PHP_GINIT_FUNCTION(sockets);
+static PHP_GSHUTDOWN_FUNCTION(sockets);
 static PHP_MINIT_FUNCTION(sockets);
 static PHP_MSHUTDOWN_FUNCTION(sockets);
 static PHP_MINFO_FUNCTION(sockets);
@@ -305,10 +345,20 @@ PHP_FUNCTION(socket_shutdown);
 PHP_FUNCTION(socket_last_error);
 PHP_FUNCTION(socket_clear_error);
 PHP_FUNCTION(socket_import_stream);
+PHP_FUNCTION(socket_export_stream);
+PHP_FUNCTION(socket_addrinfo_lookup);
+PHP_FUNCTION(socket_addrinfo_connect);
+PHP_FUNCTION(socket_addrinfo_bind);
+PHP_FUNCTION(socket_addrinfo_explain);
+#ifdef PHP_WIN32
+PHP_FUNCTION(socket_wsaprotocol_info_export);
+PHP_FUNCTION(socket_wsaprotocol_info_import);
+PHP_FUNCTION(socket_wsaprotocol_info_release);
+#endif
 
 /* {{{ sockets_functions[]
  */
-const zend_function_entry sockets_functions[] = {
+static const zend_function_entry sockets_functions[] = {
 	PHP_FE(socket_select,			arginfo_socket_select)
 	PHP_FE(socket_create,			arginfo_socket_create)
 	PHP_FE(socket_create_listen,	arginfo_socket_create_listen)
@@ -339,13 +389,24 @@ const zend_function_entry sockets_functions[] = {
 	PHP_FE(socket_last_error,		arginfo_socket_last_error)
 	PHP_FE(socket_clear_error,		arginfo_socket_clear_error)
 	PHP_FE(socket_import_stream,	arginfo_socket_import_stream)
+	PHP_FE(socket_export_stream,	arginfo_socket_export_stream)
 	PHP_FE(socket_sendmsg,			arginfo_socket_sendmsg)
 	PHP_FE(socket_recvmsg,			arginfo_socket_recvmsg)
 	PHP_FE(socket_cmsg_space,		arginfo_socket_cmsg_space)
+	PHP_FE(socket_addrinfo_lookup,	arginfo_socket_addrinfo_lookup)
+	PHP_FE(socket_addrinfo_connect,	arginfo_socket_addrinfo_connect)
+	PHP_FE(socket_addrinfo_bind,	arginfo_socket_addrinfo_bind)
+	PHP_FE(socket_addrinfo_explain,	arginfo_socket_addrinfo_explain)
 
 	/* for downwards compatibility */
 	PHP_FALIAS(socket_getopt, socket_get_option, arginfo_socket_get_option)
 	PHP_FALIAS(socket_setopt, socket_set_option, arginfo_socket_set_option)
+
+#ifdef PHP_WIN32
+	PHP_FE(socket_wsaprotocol_info_export, arginfo_socket_wsaprotocol_info_export)
+	PHP_FE(socket_wsaprotocol_info_import, arginfo_socket_wsaprotocol_info_import)
+	PHP_FE(socket_wsaprotocol_info_release, arginfo_socket_wsaprotocol_info_release)
+#endif
 
 	PHP_FE_END
 };
@@ -360,16 +421,19 @@ zend_module_entry sockets_module_entry = {
 	NULL,
 	PHP_RSHUTDOWN(sockets),
 	PHP_MINFO(sockets),
-	NO_VERSION_YET,
+	PHP_SOCKETS_VERSION,
 	PHP_MODULE_GLOBALS(sockets),
 	PHP_GINIT(sockets),
-	NULL,
+	PHP_GSHUTDOWN(sockets),
 	NULL,
 	STANDARD_MODULE_PROPERTIES_EX
 };
 
 
 #ifdef COMPILE_DL_SOCKETS
+#ifdef ZTS
+	ZEND_TSRMLS_CACHE_DEFINE()
+#endif
 ZEND_GET_MODULE(sockets)
 #endif
 
@@ -384,7 +448,7 @@ PHP_SOCKETS_API int php_sockets_le_socket(void) /* {{{ */
 
 /* allocating function to make programming errors due to uninitialized fields
  * less likely */
-static php_socket *php_create_socket(void) /* {{{ */
+PHP_SOCKETS_API php_socket *php_create_socket(void) /* {{{ */
 {
 	php_socket *php_sock = emalloc(sizeof(php_socket));
 
@@ -398,7 +462,7 @@ static php_socket *php_create_socket(void) /* {{{ */
 }
 /* }}} */
 
-static void php_destroy_socket(zend_resource *rsrc TSRMLS_DC) /* {{{ */
+PHP_SOCKETS_API void php_destroy_socket(zend_resource *rsrc) /* {{{ */
 {
 	php_socket *php_sock = rsrc->ptr;
 
@@ -413,7 +477,18 @@ static void php_destroy_socket(zend_resource *rsrc TSRMLS_DC) /* {{{ */
 }
 /* }}} */
 
-static int php_open_listen_sock(php_socket **php_sock, int port, int backlog TSRMLS_DC) /* {{{ */
+PHP_SOCKETS_API void php_destroy_addrinfo(zend_resource *rsrc) /* {{{ */
+{
+	struct addrinfo *addr = rsrc->ptr;
+	efree(addr->ai_addr);
+	if (addr->ai_canonname != NULL) {
+		efree(addr->ai_canonname);
+	}
+	efree(addr);
+}
+/* }}} */
+
+static int php_open_listen_sock(php_socket **php_sock, int port, int backlog) /* {{{ */
 {
 	struct sockaddr_in  la;
 	struct hostent		*hp;
@@ -422,9 +497,9 @@ static int php_open_listen_sock(php_socket **php_sock, int port, int backlog TSR
 	*php_sock = sock;
 
 #ifndef PHP_WIN32
-	if ((hp = gethostbyname("0.0.0.0")) == NULL) {
+	if ((hp = php_network_gethostbyname("0.0.0.0")) == NULL) {
 #else
-	if ((hp = gethostbyname("localhost")) == NULL) {
+	if ((hp = php_network_gethostbyname("localhost")) == NULL) {
 #endif
 		efree(sock);
 		return 0;
@@ -463,7 +538,7 @@ static int php_open_listen_sock(php_socket **php_sock, int port, int backlog TSR
 }
 /* }}} */
 
-static int php_accept_connect(php_socket *in_sock, php_socket **new_sock, struct sockaddr *la, socklen_t *la_len TSRMLS_DC) /* {{{ */
+static int php_accept_connect(php_socket *in_sock, php_socket **new_sock, struct sockaddr *la, socklen_t *la_len) /* {{{ */
 {
 	php_socket	*out_sock = php_create_socket();
 
@@ -550,7 +625,7 @@ static int php_read(php_socket *sock, void *buf, size_t maxlen, int flags)
 }
 /* }}} */
 
-char *sockets_strerror(int error TSRMLS_DC) /* {{{ */
+char *sockets_strerror(int error) /* {{{ */
 {
 	const char *buf;
 
@@ -575,12 +650,10 @@ char *sockets_strerror(int error TSRMLS_DC) /* {{{ */
 	}
 #else
 	{
-		LPTSTR tmp = NULL;
+		char *tmp = php_win32_error_to_msg(error);
 		buf = NULL;
 
-		if (FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM |	FORMAT_MESSAGE_IGNORE_INSERTS,
-			NULL, error, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPTSTR) &tmp, 0, NULL)
-		) {
+		if (tmp[0]) {
 			if (SOCKETS_G(strerror_buf)) {
 				efree(SOCKETS_G(strerror_buf));
 			}
@@ -597,11 +670,35 @@ char *sockets_strerror(int error TSRMLS_DC) /* {{{ */
 }
 /* }}} */
 
+#ifdef PHP_WIN32
+static void sockets_destroy_wsa_info(zval *data)
+{/*{{{*/
+	HANDLE h = (HANDLE)Z_PTR_P(data);
+	CloseHandle(h);
+}/*}}}*/
+#endif
+
 /* {{{ PHP_GINIT_FUNCTION */
 static PHP_GINIT_FUNCTION(sockets)
 {
+#if defined(COMPILE_DL_SOCKETS) && defined(ZTS)
+	ZEND_TSRMLS_CACHE_UPDATE();
+#endif
 	sockets_globals->last_error = 0;
 	sockets_globals->strerror_buf = NULL;
+#ifdef PHP_WIN32
+	sockets_globals->wsa_child_count = 0;
+	zend_hash_init(&sockets_globals->wsa_info, 0, NULL, sockets_destroy_wsa_info, 1);
+#endif
+}
+/* }}} */
+
+/* {{{ PHP_GSHUTDOWN_FUNCTION */
+static PHP_GSHUTDOWN_FUNCTION(sockets)
+{
+#ifdef PHP_WIN32
+	zend_hash_destroy(&sockets_globals->wsa_info);
+#endif
 }
 /* }}} */
 
@@ -609,7 +706,11 @@ static PHP_GINIT_FUNCTION(sockets)
  */
 static PHP_MINIT_FUNCTION(sockets)
 {
+#if defined(COMPILE_DL_SOCKETS) && defined(ZTS)
+	ZEND_TSRMLS_CACHE_UPDATE();
+#endif
 	le_socket = zend_register_list_destructors_ex(php_destroy_socket, NULL, le_socket_name, module_number);
+	le_addrinfo = zend_register_list_destructors_ex(php_destroy_addrinfo, NULL, le_addrinfo_name, module_number);
 
 	REGISTER_LONG_CONSTANT("AF_UNIX",		AF_UNIX,		CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("AF_INET",		AF_INET,		CONST_CS | CONST_PERSISTENT);
@@ -681,6 +782,13 @@ static PHP_MINIT_FUNCTION(sockets)
 #ifdef SO_BINDTODEVICE
 	REGISTER_LONG_CONSTANT("SO_BINDTODEVICE",       SO_BINDTODEVICE,        CONST_CS | CONST_PERSISTENT);
 #endif
+#ifdef SO_USER_COOKIE
+	REGISTER_LONG_CONSTANT("SO_LABEL",       SO_LABEL,        CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("SO_PEERLABEL",       SO_PEERLABEL,        CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("SO_LISTENQLIMIT",       SO_LISTENQLIMIT,        CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("SO_LISTENQLEN",       SO_LISTENQLEN,        CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("SO_USER_COOKIE",       SO_USER_COOKIE,        CONST_CS | CONST_PERSISTENT);
+#endif
 	REGISTER_LONG_CONSTANT("SOL_SOCKET",	SOL_SOCKET,		CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("SOMAXCONN",		SOMAXCONN,		CONST_CS | CONST_PERSISTENT);
 #ifdef TCP_NODELAY
@@ -707,6 +815,10 @@ static PHP_MINIT_FUNCTION(sockets)
 	REGISTER_LONG_CONSTANT("IPV6_MULTICAST_LOOP",		IPV6_MULTICAST_LOOP,	CONST_CS | CONST_PERSISTENT);
 #endif
 
+#ifdef IPV6_V6ONLY
+	REGISTER_LONG_CONSTANT("IPV6_V6ONLY",			IPV6_V6ONLY,		CONST_CS | CONST_PERSISTENT);
+#endif
+
 #ifndef WIN32
 # include "unix_socket_constants.h"
 #else
@@ -723,6 +835,26 @@ static PHP_MINIT_FUNCTION(sockets)
 
 #if HAVE_IPV6
 	REGISTER_LONG_CONSTANT("IPV6_UNICAST_HOPS",			IPV6_UNICAST_HOPS,	CONST_CS | CONST_PERSISTENT);
+#endif
+
+	REGISTER_LONG_CONSTANT("AI_PASSIVE",		AI_PASSIVE,			CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("AI_CANONNAME",		AI_CANONNAME,		CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("AI_NUMERICHOST",	AI_NUMERICHOST,		CONST_CS | CONST_PERSISTENT);
+#if HAVE_AI_V4MAPPED
+	REGISTER_LONG_CONSTANT("AI_V4MAPPED",		AI_V4MAPPED,		CONST_CS | CONST_PERSISTENT);
+#endif
+#if HAVE_AI_ALL
+	REGISTER_LONG_CONSTANT("AI_ALL",			AI_ALL,				CONST_CS | CONST_PERSISTENT);
+#endif
+	REGISTER_LONG_CONSTANT("AI_ADDRCONFIG",		AI_ADDRCONFIG,		CONST_CS | CONST_PERSISTENT);
+#if HAVE_AI_IDN
+	REGISTER_LONG_CONSTANT("AI_IDN",			AI_IDN,				CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("AI_CANONIDN",		AI_CANONIDN,		CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("AI_IDN_ALLOW_UNASSIGNED",		AI_IDN_ALLOW_UNASSIGNED, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("AI_IDN_USE_STD3_ASCII_RULES",	AI_IDN_USE_STD3_ASCII_RULES, CONST_CS | CONST_PERSISTENT);
+#endif
+#ifdef AI_NUMERICSERV
+	REGISTER_LONG_CONSTANT("AI_NUMERICSERV",	AI_NUMERICSERV,		CONST_CS | CONST_PERSISTENT);
 #endif
 
 	php_socket_sendrecvmsg_init(INIT_FUNC_ARGS_PASSTHRU);
@@ -763,7 +895,7 @@ static PHP_RSHUTDOWN_FUNCTION(sockets)
 }
 /* }}} */
 
-static int php_sock_array_to_fd_set(zval *sock_array, fd_set *fds, PHP_SOCKET *max_fd TSRMLS_DC) /* {{{ */
+static int php_sock_array_to_fd_set(zval *sock_array, fd_set *fds, PHP_SOCKET *max_fd) /* {{{ */
 {
 	zval		*element;
 	php_socket	*php_sock;
@@ -772,7 +904,8 @@ static int php_sock_array_to_fd_set(zval *sock_array, fd_set *fds, PHP_SOCKET *m
 	if (Z_TYPE_P(sock_array) != IS_ARRAY) return 0;
 
 	ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(sock_array), element) {
-		php_sock = (php_socket*) zend_fetch_resource(element TSRMLS_CC, -1, le_socket_name, NULL, 1, le_socket);
+		ZVAL_DEREF(element);
+		php_sock = (php_socket*) zend_fetch_resource_ex(element, le_socket_name, le_socket);
 		if (!php_sock) continue; /* If element is not a resource, skip it */
 
 		PHP_SAFE_FD_SET(php_sock->bsd_socket, fds);
@@ -786,7 +919,7 @@ static int php_sock_array_to_fd_set(zval *sock_array, fd_set *fds, PHP_SOCKET *m
 }
 /* }}} */
 
-static int php_sock_array_from_fd_set(zval *sock_array, fd_set *fds TSRMLS_DC) /* {{{ */
+static int php_sock_array_from_fd_set(zval *sock_array, fd_set *fds) /* {{{ */
 {
 	zval		*element;
 	zval		*dest_element;
@@ -800,7 +933,8 @@ static int php_sock_array_from_fd_set(zval *sock_array, fd_set *fds TSRMLS_DC) /
 
 	array_init(&new_hash);
 	ZEND_HASH_FOREACH_KEY_VAL(Z_ARRVAL_P(sock_array), num_key, key, element) {
-		php_sock = (php_socket*) zend_fetch_resource(element TSRMLS_CC, -1, le_socket_name, NULL, 1, le_socket);
+		ZVAL_DEREF(element);
+		php_sock = (php_socket*) zend_fetch_resource_ex(element, le_socket_name, le_socket);
 		if (!php_sock) continue; /* If element is not a resource, skip it */
 
 		if (PHP_SAFE_FD_ISSET(php_sock->bsd_socket, fds)) {
@@ -826,7 +960,7 @@ static int php_sock_array_from_fd_set(zval *sock_array, fd_set *fds TSRMLS_DC) /
 }
 /* }}} */
 
-/* {{{ proto int socket_select(array &read_fds, array &write_fds, array &except_fds, int tv_sec[, int tv_usec]) 
+/* {{{ proto int socket_select(array &read_fds, array &write_fds, array &except_fds, int tv_sec[, int tv_usec])
    Runs the select() system call on the sets mentioned with a timeout specified by tv_sec and tv_usec */
 PHP_FUNCTION(socket_select)
 {
@@ -838,7 +972,7 @@ PHP_FUNCTION(socket_select)
 	int				retval, sets = 0;
 	zend_long			usec = 0;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "a/!a/!a/!z!|l", &r_array, &w_array, &e_array, &sec, &usec) == FAILURE) {
+	if (zend_parse_parameters(ZEND_NUM_ARGS(), "a!a!a!z!|l", &r_array, &w_array, &e_array, &sec, &usec) == FAILURE) {
 		return;
 	}
 
@@ -846,12 +980,12 @@ PHP_FUNCTION(socket_select)
 	FD_ZERO(&wfds);
 	FD_ZERO(&efds);
 
-	if (r_array != NULL) sets += php_sock_array_to_fd_set(r_array, &rfds, &max_fd TSRMLS_CC);
-	if (w_array != NULL) sets += php_sock_array_to_fd_set(w_array, &wfds, &max_fd TSRMLS_CC);
-	if (e_array != NULL) sets += php_sock_array_to_fd_set(e_array, &efds, &max_fd TSRMLS_CC);
+	if (r_array != NULL) sets += php_sock_array_to_fd_set(r_array, &rfds, &max_fd);
+	if (w_array != NULL) sets += php_sock_array_to_fd_set(w_array, &wfds, &max_fd);
+	if (e_array != NULL) sets += php_sock_array_to_fd_set(e_array, &efds, &max_fd);
 
 	if (!sets) {
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "no resource arrays were passed to select");
+		php_error_docref(NULL, E_WARNING, "no resource arrays were passed to select");
 		RETURN_FALSE;
 	}
 
@@ -859,66 +993,55 @@ PHP_FUNCTION(socket_select)
 
 	/* If seconds is not set to null, build the timeval, else we wait indefinitely */
 	if (sec != NULL) {
-		zval tmp;
-
-		if (Z_TYPE_P(sec) != IS_LONG) {
-			tmp = *sec;
-			zval_copy_ctor(&tmp);
-			convert_to_long(&tmp);
-			sec = &tmp;
-		}
+		zend_long s = zval_get_long(sec);
 
 		/* Solaris + BSD do not like microsecond values which are >= 1 sec */
 		if (usec > 999999) {
-			tv.tv_sec = Z_LVAL_P(sec) + (usec / 1000000);
+			tv.tv_sec = s + (usec / 1000000);
 			tv.tv_usec = usec % 1000000;
 		} else {
-			tv.tv_sec = Z_LVAL_P(sec);
+			tv.tv_sec = s;
 			tv.tv_usec = usec;
 		}
 
 		tv_p = &tv;
-
-		if (sec == &tmp) {
-			zval_dtor(&tmp);
-		}
 	}
 
 	retval = select(max_fd+1, &rfds, &wfds, &efds, tv_p);
 
 	if (retval == -1) {
 		SOCKETS_G(last_error) = errno;
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "unable to select [%d]: %s", errno, sockets_strerror(errno TSRMLS_CC));
+		php_error_docref(NULL, E_WARNING, "unable to select [%d]: %s", errno, sockets_strerror(errno));
 		RETURN_FALSE;
 	}
 
-	if (r_array != NULL) php_sock_array_from_fd_set(r_array, &rfds TSRMLS_CC);
-	if (w_array != NULL) php_sock_array_from_fd_set(w_array, &wfds TSRMLS_CC);
-	if (e_array != NULL) php_sock_array_from_fd_set(e_array, &efds TSRMLS_CC);
+	if (r_array != NULL) php_sock_array_from_fd_set(r_array, &rfds);
+	if (w_array != NULL) php_sock_array_from_fd_set(w_array, &wfds);
+	if (e_array != NULL) php_sock_array_from_fd_set(e_array, &efds);
 
 	RETURN_LONG(retval);
 }
 /* }}} */
 
-/* {{{ proto resource socket_create_listen(int port[, int backlog]) 
+/* {{{ proto resource socket_create_listen(int port[, int backlog])
    Opens a socket on port to accept connections */
 PHP_FUNCTION(socket_create_listen)
 {
 	php_socket	*php_sock;
 	zend_long		port, backlog = 128;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l|l", &port, &backlog) == FAILURE) {
+	if (zend_parse_parameters(ZEND_NUM_ARGS(), "l|l", &port, &backlog) == FAILURE) {
 		return;
 	}
 
-	if (!php_open_listen_sock(&php_sock, port, backlog TSRMLS_CC)) {
+	if (!php_open_listen_sock(&php_sock, port, backlog)) {
 		RETURN_FALSE;
 	}
 
 	php_sock->error = 0;
 	php_sock->blocking = 1;
 
-	ZEND_REGISTER_RESOURCE(return_value, php_sock, le_socket);
+	RETURN_RES(zend_register_resource(php_sock, le_socket));
 }
 /* }}} */
 
@@ -931,17 +1054,19 @@ PHP_FUNCTION(socket_accept)
 	php_sockaddr_storage sa;
 	socklen_t			 php_sa_len = sizeof(sa);
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "r", &arg1) == FAILURE) {
+	if (zend_parse_parameters(ZEND_NUM_ARGS(), "r", &arg1) == FAILURE) {
 		return;
 	}
 
-	ZEND_FETCH_RESOURCE(php_sock, php_socket *, arg1, -1, le_socket_name, le_socket);
-
-	if (!php_accept_connect(php_sock, &new_sock, (struct sockaddr*)&sa, &php_sa_len TSRMLS_CC)) {
+	if ((php_sock = (php_socket *)zend_fetch_resource(Z_RES_P(arg1), le_socket_name, le_socket)) == NULL) {
 		RETURN_FALSE;
 	}
 
-	ZEND_REGISTER_RESOURCE(return_value, new_sock, le_socket);
+	if (!php_accept_connect(php_sock, &new_sock, (struct sockaddr*)&sa, &php_sa_len)) {
+		RETURN_FALSE;
+	}
+
+	RETURN_RES(zend_register_resource(new_sock, le_socket));
 }
 /* }}} */
 
@@ -952,17 +1077,18 @@ PHP_FUNCTION(socket_set_nonblock)
 	zval		*arg1;
 	php_socket	*php_sock;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "r", &arg1) == FAILURE) {
+	if (zend_parse_parameters(ZEND_NUM_ARGS(), "r", &arg1) == FAILURE) {
 		return;
 	}
 
-	ZEND_FETCH_RESOURCE(php_sock, php_socket *, arg1, -1, le_socket_name, le_socket);
+	if ((php_sock = (php_socket *)zend_fetch_resource(Z_RES_P(arg1), le_socket_name, le_socket)) == NULL) {
+		RETURN_FALSE;
+	}
 
 	if (!Z_ISUNDEF(php_sock->zstream)) {
 		php_stream *stream;
 		/* omit notice if resource doesn't exist anymore */
-		stream = zend_fetch_resource(&php_sock->zstream TSRMLS_CC, -1,
-			NULL, NULL, 2, php_file_le_stream(), php_file_le_pstream());
+		stream = zend_fetch_resource2_ex(&php_sock->zstream, NULL, php_file_le_stream(), php_file_le_pstream());
 		if (stream != NULL) {
 			if (php_stream_set_option(stream, PHP_STREAM_OPTION_BLOCKING, 0,
 					NULL) != -1) {
@@ -972,7 +1098,7 @@ PHP_FUNCTION(socket_set_nonblock)
 		}
 	}
 
-	if (php_set_sock_blocking(php_sock->bsd_socket, 0 TSRMLS_CC) == SUCCESS) {
+	if (php_set_sock_blocking(php_sock->bsd_socket, 0) == SUCCESS) {
 		php_sock->blocking = 0;
 		RETURN_TRUE;
 	} else {
@@ -989,19 +1115,20 @@ PHP_FUNCTION(socket_set_block)
 	zval		*arg1;
 	php_socket	*php_sock;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "r", &arg1) == FAILURE) {
+	if (zend_parse_parameters(ZEND_NUM_ARGS(), "r", &arg1) == FAILURE) {
 		return;
 	}
 
-	ZEND_FETCH_RESOURCE(php_sock, php_socket *, arg1, -1, le_socket_name, le_socket);
+	if ((php_sock = (php_socket *)zend_fetch_resource(Z_RES_P(arg1), le_socket_name, le_socket)) == NULL) {
+		RETURN_FALSE;
+	}
 
 	/* if socket was created from a stream, give the stream a chance to take
 	 * care of the operation itself, thereby allowing it to update its internal
 	 * state */
 	if (!Z_ISUNDEF(php_sock->zstream)) {
 		php_stream *stream;
-		stream = zend_fetch_resource(&php_sock->zstream TSRMLS_CC, -1,
-			NULL, NULL, 2, php_file_le_stream(), php_file_le_pstream());
+		stream = zend_fetch_resource2_ex(&php_sock->zstream, NULL, php_file_le_stream(), php_file_le_pstream());
 		if (stream != NULL) {
 			if (php_stream_set_option(stream, PHP_STREAM_OPTION_BLOCKING, 1,
 					NULL) != -1) {
@@ -1011,7 +1138,7 @@ PHP_FUNCTION(socket_set_block)
 		}
 	}
 
-	if (php_set_sock_blocking(php_sock->bsd_socket, 1 TSRMLS_CC) == SUCCESS) {
+	if (php_set_sock_blocking(php_sock->bsd_socket, 1) == SUCCESS) {
 		php_sock->blocking = 1;
 		RETURN_TRUE;
 	} else {
@@ -1029,11 +1156,13 @@ PHP_FUNCTION(socket_listen)
 	php_socket	*php_sock;
 	zend_long		backlog = 0;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "r|l", &arg1, &backlog) == FAILURE) {
+	if (zend_parse_parameters(ZEND_NUM_ARGS(), "r|l", &arg1, &backlog) == FAILURE) {
 		return;
 	}
 
-	ZEND_FETCH_RESOURCE(php_sock, php_socket *, arg1, -1, le_socket_name, le_socket);
+	if ((php_sock = (php_socket *)zend_fetch_resource(Z_RES_P(arg1), le_socket_name, le_socket)) == NULL) {
+		RETURN_FALSE;
+	}
 
 	if (listen(php_sock->bsd_socket, backlog) != 0) {
 		PHP_SOCKET_ERROR(php_sock, "unable to listen on socket", errno);
@@ -1050,18 +1179,22 @@ PHP_FUNCTION(socket_close)
 	zval		*arg1;
 	php_socket	*php_sock;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "r", &arg1) == FAILURE) {
+	if (zend_parse_parameters(ZEND_NUM_ARGS(), "r", &arg1) == FAILURE) {
 		return;
 	}
 
-	ZEND_FETCH_RESOURCE(php_sock, php_socket *, arg1, -1, le_socket_name, le_socket);
+	if ((php_sock = (php_socket *)zend_fetch_resource(Z_RES_P(arg1), le_socket_name, le_socket)) == NULL) {
+		RETURN_FALSE;
+	}
+
 	if (!Z_ISUNDEF(php_sock->zstream)) {
 		php_stream *stream = NULL;
 		php_stream_from_zval_no_verify(stream, &php_sock->zstream);
 		if (stream != NULL) {
 			/* close & destroy stream, incl. removing it from the rsrc list;
 			 * resource stored in php_sock->zstream will become invalid */
-			php_stream_free(stream, PHP_STREAM_FREE_CLOSE |
+			php_stream_free(stream,
+					PHP_STREAM_FREE_KEEP_RSRC | PHP_STREAM_FREE_CLOSE |
 					(stream->is_persistent?PHP_STREAM_FREE_CLOSE_PERSISTENT:0));
 		}
 	}
@@ -1080,11 +1213,18 @@ PHP_FUNCTION(socket_write)
 	zend_long	length = 0;
 	char		*str;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rs|l", &arg1, &str, &str_len, &length) == FAILURE) {
+	if (zend_parse_parameters(ZEND_NUM_ARGS(), "rs|l", &arg1, &str, &str_len, &length) == FAILURE) {
 		return;
 	}
 
-	ZEND_FETCH_RESOURCE(php_sock, php_socket *, arg1, -1, le_socket_name, le_socket);
+	if (length < 0) {
+		php_error_docref(NULL, E_WARNING, "Length cannot be negative");
+		RETURN_FALSE;
+	}
+
+	if ((php_sock = (php_socket *)zend_fetch_resource(Z_RES_P(arg1), le_socket_name, le_socket)) == NULL) {
+		RETURN_FALSE;
+	}
 
 	if (ZEND_NUM_ARGS() < 3) {
 		length = str_len;
@@ -1105,7 +1245,7 @@ PHP_FUNCTION(socket_write)
 }
 /* }}} */
 
-/* {{{ proto string socket_read(resource socket, int length [, int type]) 
+/* {{{ proto string socket_read(resource socket, int length [, int type])
    Reads a maximum of length bytes from socket */
 PHP_FUNCTION(socket_read)
 {
@@ -1115,7 +1255,7 @@ PHP_FUNCTION(socket_read)
 	int			retval;
 	zend_long		length, type = PHP_BINARY_READ;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rl|l", &arg1, &length, &type) == FAILURE) {
+	if (zend_parse_parameters(ZEND_NUM_ARGS(), "rl|l", &arg1, &length, &type) == FAILURE) {
 		return;
 	}
 
@@ -1126,12 +1266,14 @@ PHP_FUNCTION(socket_read)
 
 	tmpbuf = zend_string_alloc(length, 0);
 
-	ZEND_FETCH_RESOURCE(php_sock, php_socket *, arg1, -1, le_socket_name, le_socket);
+	if ((php_sock = (php_socket *)zend_fetch_resource(Z_RES_P(arg1), le_socket_name, le_socket)) == NULL) {
+		RETURN_FALSE;
+	}
 
 	if (type == PHP_NORMAL_READ) {
-		retval = php_read(php_sock, tmpbuf->val, length, 0);
+		retval = php_read(php_sock, ZSTR_VAL(tmpbuf), length, 0);
 	} else {
-		retval = recv(php_sock->bsd_socket, tmpbuf->val, length, 0);
+		retval = recv(php_sock->bsd_socket, ZSTR_VAL(tmpbuf), length, 0);
 	}
 
 	if (retval == -1) {
@@ -1148,18 +1290,18 @@ PHP_FUNCTION(socket_read)
 			PHP_SOCKET_ERROR(php_sock, "unable to read from socket", errno);
 		}
 
-		zend_string_free(tmpbuf);
+		zend_string_efree(tmpbuf);
 		RETURN_FALSE;
 	} else if (!retval) {
-		zend_string_free(tmpbuf);
+		zend_string_efree(tmpbuf);
 		RETURN_EMPTY_STRING();
 	}
 
-	tmpbuf = zend_string_realloc(tmpbuf, retval, 0);
-	tmpbuf->len = retval;
-	tmpbuf->val[tmpbuf->len] = '\0' ;
+	tmpbuf = zend_string_truncate(tmpbuf, retval, 0);
+	ZSTR_LEN(tmpbuf) = retval;
+	ZSTR_VAL(tmpbuf)[ZSTR_LEN(tmpbuf)] = '\0' ;
 
-	RETURN_STR(tmpbuf);
+	RETURN_NEW_STR(tmpbuf);
 }
 /* }}} */
 
@@ -1180,11 +1322,13 @@ PHP_FUNCTION(socket_getsockname)
 	char					*addr_string;
 	socklen_t				salen = sizeof(php_sockaddr_storage);
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rz/|z/", &arg1, &addr, &port) == FAILURE) {
+	if (zend_parse_parameters(ZEND_NUM_ARGS(), "rz|z", &arg1, &addr, &port) == FAILURE) {
 		return;
 	}
 
-	ZEND_FETCH_RESOURCE(php_sock, php_socket *, arg1, -1, le_socket_name, le_socket);
+	if ((php_sock = (php_socket *)zend_fetch_resource(Z_RES_P(arg1), le_socket_name, le_socket)) == NULL) {
+		RETURN_FALSE;
+	}
 
 	sa = (struct sockaddr *) &sa_storage;
 
@@ -1193,21 +1337,15 @@ PHP_FUNCTION(socket_getsockname)
 		RETURN_FALSE;
 	}
 
-	if (port != NULL) {
-		ZVAL_DEREF(port);
-	}
-
 	switch (sa->sa_family) {
 #if HAVE_IPV6
 		case AF_INET6:
 			sin6 = (struct sockaddr_in6 *) sa;
 			inet_ntop(AF_INET6, &sin6->sin6_addr, addr6, INET6_ADDRSTRLEN);
-			zval_dtor(addr);
-			ZVAL_STRING(addr, addr6);
+			ZEND_TRY_ASSIGN_REF_STRING(addr, addr6);
 
 			if (port != NULL) {
-				zval_dtor(port);
-				ZVAL_LONG(port, htons(sin6->sin6_port));
+				ZEND_TRY_ASSIGN_REF_LONG(port, htons(sin6->sin6_port));
 			}
 			RETURN_TRUE;
 			break;
@@ -1219,12 +1357,10 @@ PHP_FUNCTION(socket_getsockname)
 			addr_string = inet_ntoa(sin->sin_addr);
 			inet_ntoa_lock = 0;
 
-			zval_dtor(addr);
-			ZVAL_STRING(addr, addr_string);
+			ZEND_TRY_ASSIGN_REF_STRING(addr, addr_string);
 
 			if (port != NULL) {
-				zval_dtor(port);
-				ZVAL_LONG(port, htons(sin->sin_port));
+				ZEND_TRY_ASSIGN_REF_LONG(port, htons(sin->sin_port));
 			}
 			RETURN_TRUE;
 			break;
@@ -1232,13 +1368,12 @@ PHP_FUNCTION(socket_getsockname)
 		case AF_UNIX:
 			s_un = (struct sockaddr_un *) sa;
 
-			zval_dtor(addr);
-			ZVAL_STRING(addr, s_un->sun_path);
+			ZEND_TRY_ASSIGN_REF_STRING(addr, s_un->sun_path);
 			RETURN_TRUE;
 			break;
 
 		default:
-			php_error_docref(NULL TSRMLS_CC, E_WARNING, "Unsupported address family %d", sa->sa_family);
+			php_error_docref(NULL, E_WARNING, "Unsupported address family %d", sa->sa_family);
 			RETURN_FALSE;
 	}
 }
@@ -1261,11 +1396,13 @@ PHP_FUNCTION(socket_getpeername)
 	char					*addr_string;
 	socklen_t				salen = sizeof(php_sockaddr_storage);
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rz/|z/", &arg1, &arg2, &arg3) == FAILURE) {
+	if (zend_parse_parameters(ZEND_NUM_ARGS(), "rz|z", &arg1, &arg2, &arg3) == FAILURE) {
 		return;
 	}
 
-	ZEND_FETCH_RESOURCE(php_sock, php_socket *, arg1, -1, le_socket_name, le_socket);
+	if ((php_sock = (php_socket *)zend_fetch_resource(Z_RES_P(arg1), le_socket_name, le_socket)) == NULL) {
+		RETURN_FALSE;
+	}
 
 	sa = (struct sockaddr *) &sa_storage;
 
@@ -1279,12 +1416,11 @@ PHP_FUNCTION(socket_getpeername)
 		case AF_INET6:
 			sin6 = (struct sockaddr_in6 *) sa;
 			inet_ntop(AF_INET6, &sin6->sin6_addr, addr6, INET6_ADDRSTRLEN);
-			zval_dtor(arg2);
-			ZVAL_STRING(arg2, addr6);
+
+			ZEND_TRY_ASSIGN_REF_STRING(arg2, addr6);
 
 			if (arg3 != NULL) {
-				zval_dtor(arg3);
-				ZVAL_LONG(arg3, htons(sin6->sin6_port));
+				ZEND_TRY_ASSIGN_REF_LONG(arg3, htons(sin6->sin6_port));
 			}
 
 			RETURN_TRUE;
@@ -1297,12 +1433,10 @@ PHP_FUNCTION(socket_getpeername)
 			addr_string = inet_ntoa(sin->sin_addr);
 			inet_ntoa_lock = 0;
 
-			zval_dtor(arg2);
-			ZVAL_STRING(arg2, addr_string);
+			ZEND_TRY_ASSIGN_REF_STRING(arg2, addr_string);
 
 			if (arg3 != NULL) {
-				zval_dtor(arg3);
-				ZVAL_LONG(arg3, htons(sin->sin_port));
+				ZEND_TRY_ASSIGN_REF_LONG(arg3, htons(sin->sin_port));
 			}
 
 			RETURN_TRUE;
@@ -1311,26 +1445,25 @@ PHP_FUNCTION(socket_getpeername)
 		case AF_UNIX:
 			s_un = (struct sockaddr_un *) sa;
 
-			zval_dtor(arg2);
-			ZVAL_STRING(arg2, s_un->sun_path);
+			ZEND_TRY_ASSIGN_REF_STRING(arg2, s_un->sun_path);
 			RETURN_TRUE;
 			break;
 
 		default:
-			php_error_docref(NULL TSRMLS_CC, E_WARNING, "Unsupported address family %d", sa->sa_family);
+			php_error_docref(NULL, E_WARNING, "Unsupported address family %d", sa->sa_family);
 			RETURN_FALSE;
 	}
 }
 /* }}} */
 
-/* {{{ proto resource socket_create(int domain, int type, int protocol) 
+/* {{{ proto resource socket_create(int domain, int type, int protocol)
    Creates an endpoint for communication in the domain specified by domain, of type specified by type */
 PHP_FUNCTION(socket_create)
 {
 	zend_long		arg1, arg2, arg3;
 	php_socket	*php_sock = php_create_socket();
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "lll", &arg1, &arg2, &arg3) == FAILURE) {
+	if (zend_parse_parameters(ZEND_NUM_ARGS(), "lll", &arg1, &arg2, &arg3) == FAILURE) {
 		efree(php_sock);
 		return;
 	}
@@ -1340,12 +1473,12 @@ PHP_FUNCTION(socket_create)
 		&& arg1 != AF_INET6
 #endif
 		&& arg1 != AF_INET) {
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "invalid socket domain [%pd] specified for argument 1, assuming AF_INET", arg1);
+		php_error_docref(NULL, E_WARNING, "invalid socket domain [" ZEND_LONG_FMT "] specified for argument 1, assuming AF_INET", arg1);
 		arg1 = AF_INET;
 	}
 
 	if (arg2 > 10) {
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "invalid socket type [%pd] specified for argument 2, assuming SOCK_STREAM", arg2);
+		php_error_docref(NULL, E_WARNING, "invalid socket type [" ZEND_LONG_FMT "] specified for argument 2, assuming SOCK_STREAM", arg2);
 		arg2 = SOCK_STREAM;
 	}
 
@@ -1354,7 +1487,7 @@ PHP_FUNCTION(socket_create)
 
 	if (IS_INVALID_SOCKET(php_sock)) {
 		SOCKETS_G(last_error) = errno;
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Unable to create socket [%d]: %s", errno, sockets_strerror(errno TSRMLS_CC));
+		php_error_docref(NULL, E_WARNING, "Unable to create socket [%d]: %s", errno, sockets_strerror(errno));
 		efree(php_sock);
 		RETURN_FALSE;
 	}
@@ -1362,7 +1495,7 @@ PHP_FUNCTION(socket_create)
 	php_sock->error = 0;
 	php_sock->blocking = 1;
 
-	ZEND_REGISTER_RESOURCE(return_value, php_sock, le_socket);
+	RETURN_RES(zend_register_resource(php_sock, le_socket));
 }
 /* }}} */
 
@@ -1378,11 +1511,13 @@ PHP_FUNCTION(socket_connect)
 	zend_long				port = 0;
 	int					argc = ZEND_NUM_ARGS();
 
-	if (zend_parse_parameters(argc TSRMLS_CC, "rs|l", &arg1, &addr, &addr_len, &port) == FAILURE) {
+	if (zend_parse_parameters(argc, "rs|l", &arg1, &addr, &addr_len, &port) == FAILURE) {
 		return;
 	}
 
-	ZEND_FETCH_RESOURCE(php_sock, php_socket *, arg1, -1, le_socket_name, le_socket);
+	if ((php_sock = (php_socket *)zend_fetch_resource(Z_RES_P(arg1), le_socket_name, le_socket)) == NULL) {
+		RETURN_FALSE;
+	}
 
 	switch(php_sock->type) {
 #if HAVE_IPV6
@@ -1390,7 +1525,7 @@ PHP_FUNCTION(socket_connect)
 			struct sockaddr_in6 sin6 = {0};
 
 			if (argc != 3) {
-				php_error_docref(NULL TSRMLS_CC, E_WARNING, "Socket of type AF_INET6 requires 3 arguments");
+				php_error_docref(NULL, E_WARNING, "Socket of type AF_INET6 requires 3 arguments");
 				RETURN_FALSE;
 			}
 
@@ -1399,7 +1534,7 @@ PHP_FUNCTION(socket_connect)
 			sin6.sin6_family = AF_INET6;
 			sin6.sin6_port   = htons((unsigned short int)port);
 
-			if (! php_set_inet6_addr(&sin6, addr, php_sock TSRMLS_CC)) {
+			if (! php_set_inet6_addr(&sin6, addr, php_sock)) {
 				RETURN_FALSE;
 			}
 
@@ -1411,14 +1546,14 @@ PHP_FUNCTION(socket_connect)
 			struct sockaddr_in sin = {0};
 
 			if (argc != 3) {
-				php_error_docref(NULL TSRMLS_CC, E_WARNING, "Socket of type AF_INET requires 3 arguments");
+				php_error_docref(NULL, E_WARNING, "Socket of type AF_INET requires 3 arguments");
 				RETURN_FALSE;
 			}
 
 			sin.sin_family = AF_INET;
 			sin.sin_port   = htons((unsigned short int)port);
 
-			if (! php_set_inet_addr(&sin, addr, php_sock TSRMLS_CC)) {
+			if (! php_set_inet_addr(&sin, addr, php_sock)) {
 				RETURN_FALSE;
 			}
 
@@ -1430,7 +1565,7 @@ PHP_FUNCTION(socket_connect)
 			struct sockaddr_un s_un = {0};
 
 			if (addr_len >= sizeof(s_un.sun_path)) {
-				php_error_docref(NULL TSRMLS_CC, E_WARNING, "Path too long");
+				php_error_docref(NULL, E_WARNING, "Path too long");
 				RETURN_FALSE;
 			}
 
@@ -1442,7 +1577,7 @@ PHP_FUNCTION(socket_connect)
 		}
 
 		default:
-			php_error_docref(NULL TSRMLS_CC, E_WARNING, "Unsupported socket type %d", php_sock->type);
+			php_error_docref(NULL, E_WARNING, "Unsupported socket type %d", php_sock->type);
 			RETURN_FALSE;
 		}
 
@@ -1461,11 +1596,11 @@ PHP_FUNCTION(socket_strerror)
 {
 	zend_long	arg1;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l", &arg1) == FAILURE) {
+	if (zend_parse_parameters(ZEND_NUM_ARGS(), "l", &arg1) == FAILURE) {
 		return;
 	}
 
-	RETURN_STRING(sockets_strerror(arg1 TSRMLS_CC));
+	RETURN_STRING(sockets_strerror(arg1));
 }
 /* }}} */
 
@@ -1482,11 +1617,13 @@ PHP_FUNCTION(socket_bind)
 	zend_long					port = 0;
 	zend_long					retval = 0;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rs|l", &arg1, &addr, &addr_len, &port) == FAILURE) {
+	if (zend_parse_parameters(ZEND_NUM_ARGS(), "rs|l", &arg1, &addr, &addr_len, &port) == FAILURE) {
 		return;
 	}
 
-	ZEND_FETCH_RESOURCE(php_sock, php_socket *, arg1, -1, le_socket_name, le_socket);
+	if ((php_sock = (php_socket *)zend_fetch_resource(Z_RES_P(arg1), le_socket_name, le_socket)) == NULL) {
+		RETURN_FALSE;
+	}
 
 	switch(php_sock->type) {
 		case AF_UNIX:
@@ -1496,7 +1633,7 @@ PHP_FUNCTION(socket_bind)
 				sa->sun_family = AF_UNIX;
 
 				if (addr_len >= sizeof(sa->sun_path)) {
-					php_error_docref(NULL TSRMLS_CC, E_WARNING,
+					php_error_docref(NULL, E_WARNING,
 							"Invalid path: too long (maximum size is %d)",
 							(int)sizeof(sa->sun_path) - 1);
 					RETURN_FALSE;
@@ -1515,7 +1652,7 @@ PHP_FUNCTION(socket_bind)
 				sa->sin_family = AF_INET;
 				sa->sin_port = htons((unsigned short) port);
 
-				if (! php_set_inet_addr(sa, addr, php_sock TSRMLS_CC)) {
+				if (! php_set_inet_addr(sa, addr, php_sock)) {
 					RETURN_FALSE;
 				}
 
@@ -1530,7 +1667,7 @@ PHP_FUNCTION(socket_bind)
 				sa->sin6_family = AF_INET6;
 				sa->sin6_port = htons((unsigned short) port);
 
-				if (! php_set_inet6_addr(sa, addr, php_sock TSRMLS_CC)) {
+				if (! php_set_inet6_addr(sa, addr, php_sock)) {
 					RETURN_FALSE;
 				}
 
@@ -1539,7 +1676,7 @@ PHP_FUNCTION(socket_bind)
 			}
 #endif
 		default:
-			php_error_docref(NULL TSRMLS_CC, E_WARNING, "unsupported socket type '%d', must be AF_UNIX, AF_INET, or AF_INET6", php_sock->type);
+			php_error_docref(NULL, E_WARNING, "unsupported socket type '%d', must be AF_UNIX, AF_INET, or AF_INET6", php_sock->type);
 			RETURN_FALSE;
 	}
 
@@ -1562,11 +1699,13 @@ PHP_FUNCTION(socket_recv)
 	int			retval;
 	zend_long		len, flags;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rz/ll", &php_sock_res, &buf, &len, &flags) == FAILURE) {
+	if (zend_parse_parameters(ZEND_NUM_ARGS(), "rzll", &php_sock_res, &buf, &len, &flags) == FAILURE) {
 		return;
 	}
 
-	ZEND_FETCH_RESOURCE(php_sock, php_socket *, php_sock_res, -1, le_socket_name, le_socket);
+	if ((php_sock = (php_socket *)zend_fetch_resource(Z_RES_P(php_sock_res), le_socket_name, le_socket)) == NULL) {
+		RETURN_FALSE;
+	}
 
 	/* overflow check */
 	if ((len + 1) < 2) {
@@ -1575,18 +1714,13 @@ PHP_FUNCTION(socket_recv)
 
 	recv_buf = zend_string_alloc(len, 0);
 
-	if ((retval = recv(php_sock->bsd_socket, recv_buf->val, len, flags)) < 1) {
-		efree(recv_buf);
-
-		zval_dtor(buf);
-		ZVAL_NULL(buf);
+	if ((retval = recv(php_sock->bsd_socket, ZSTR_VAL(recv_buf), len, flags)) < 1) {
+		zend_string_efree(recv_buf);
+		ZEND_TRY_ASSIGN_REF_NULL(buf);
 	} else {
-		recv_buf->len = retval;
-		recv_buf->val[recv_buf->len] = '\0';
-
-		/* Rebuild buffer zval */
-		zval_dtor(buf);
-		ZVAL_NEW_STR(buf, recv_buf);
+		ZSTR_LEN(recv_buf) = retval;
+		ZSTR_VAL(recv_buf)[ZSTR_LEN(recv_buf)] = '\0';
+		ZEND_TRY_ASSIGN_REF_NEW_STR(buf, recv_buf);
 	}
 
 	if (retval == -1) {
@@ -1608,15 +1742,22 @@ PHP_FUNCTION(socket_send)
 	zend_long		len, flags;
 	char		*buf;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rsll", &arg1, &buf, &buf_len, &len, &flags) == FAILURE) {
+	if (zend_parse_parameters(ZEND_NUM_ARGS(), "rsll", &arg1, &buf, &buf_len, &len, &flags) == FAILURE) {
 		return;
 	}
 
-	ZEND_FETCH_RESOURCE(php_sock, php_socket *, arg1, -1, le_socket_name, le_socket);
+	if (len < 0) {
+		php_error_docref(NULL, E_WARNING, "Length cannot be negative");
+		RETURN_FALSE;
+	}
 
-	retval = send(php_sock->bsd_socket, buf, (buf_len < len ? buf_len : len), flags);
+	if ((php_sock = (php_socket *)zend_fetch_resource(Z_RES_P(arg1), le_socket_name, le_socket)) == NULL) {
+		RETURN_FALSE;
+	}
 
-	if (retval == -1) {
+	retval = send(php_sock->bsd_socket, buf, (buf_len < (size_t)len ? buf_len : (size_t)len), flags);
+
+	if (retval == (size_t)-1) {
 		PHP_SOCKET_ERROR(php_sock, "unable to write to socket", errno);
 		RETURN_FALSE;
 	}
@@ -1643,11 +1784,13 @@ PHP_FUNCTION(socket_recvfrom)
 	char				*address;
 	zend_string			*recv_buf;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rz/llz/|z/", &arg1, &arg2, &arg3, &arg4, &arg5, &arg6) == FAILURE) {
+	if (zend_parse_parameters(ZEND_NUM_ARGS(), "rzllz|z", &arg1, &arg2, &arg3, &arg4, &arg5, &arg6) == FAILURE) {
 		return;
 	}
 
-	ZEND_FETCH_RESOURCE(php_sock, php_socket *, arg1, -1, le_socket_name, le_socket);
+	if ((php_sock = (php_socket *)zend_fetch_resource(Z_RES_P(arg1), le_socket_name, le_socket)) == NULL) {
+		RETURN_FALSE;
+	}
 
 	/* overflow check */
 	if ((arg3 + 2) < 3) {
@@ -1659,22 +1802,21 @@ PHP_FUNCTION(socket_recvfrom)
 	switch (php_sock->type) {
 		case AF_UNIX:
 			slen = sizeof(s_un);
+			memset(&s_un, 0, slen);
 			s_un.sun_family = AF_UNIX;
-			retval = recvfrom(php_sock->bsd_socket, recv_buf->val, arg3, arg4, (struct sockaddr *)&s_un, (socklen_t *)&slen);
+
+			retval = recvfrom(php_sock->bsd_socket, ZSTR_VAL(recv_buf), arg3, arg4, (struct sockaddr *)&s_un, (socklen_t *)&slen);
 
 			if (retval < 0) {
 				PHP_SOCKET_ERROR(php_sock, "unable to recvfrom", errno);
-				zend_string_free(recv_buf);
+				zend_string_efree(recv_buf);
 				RETURN_FALSE;
 			}
-			recv_buf->len = retval;
-			recv_buf->val[recv_buf->len] = '\0';
+			ZSTR_LEN(recv_buf) = retval;
+			ZSTR_VAL(recv_buf)[ZSTR_LEN(recv_buf)] = '\0';
 
-			zval_dtor(arg2);
-			zval_dtor(arg5);
-
-			ZVAL_NEW_STR(arg2, recv_buf);
-			ZVAL_STRING(arg5, s_un.sun_path);
+			ZEND_TRY_ASSIGN_REF_NEW_STR(arg2, recv_buf);
+			ZEND_TRY_ASSIGN_REF_STRING(arg5, s_un.sun_path);
 			break;
 
 		case AF_INET:
@@ -1683,29 +1825,25 @@ PHP_FUNCTION(socket_recvfrom)
 			sin.sin_family = AF_INET;
 
 			if (arg6 == NULL) {
-				zend_string_free(recv_buf);
+				zend_string_efree(recv_buf);
 				WRONG_PARAM_COUNT;
 			}
 
-			retval = recvfrom(php_sock->bsd_socket, recv_buf->val, arg3, arg4, (struct sockaddr *)&sin, (socklen_t *)&slen);
+			retval = recvfrom(php_sock->bsd_socket, ZSTR_VAL(recv_buf), arg3, arg4, (struct sockaddr *)&sin, (socklen_t *)&slen);
 
 			if (retval < 0) {
 				PHP_SOCKET_ERROR(php_sock, "unable to recvfrom", errno);
-				zend_string_free(recv_buf);
+				zend_string_efree(recv_buf);
 				RETURN_FALSE;
 			}
-			recv_buf->len = retval;
-			recv_buf->val[recv_buf->len] = '\0';
-
-			zval_dtor(arg2);
-			zval_dtor(arg5);
-			zval_dtor(arg6);
+			ZSTR_LEN(recv_buf) = retval;
+			ZSTR_VAL(recv_buf)[ZSTR_LEN(recv_buf)] = '\0';
 
 			address = inet_ntoa(sin.sin_addr);
 
-			ZVAL_NEW_STR(arg2, recv_buf);
-			ZVAL_STRING(arg5, address ? address : "0.0.0.0");
-			ZVAL_LONG(arg6, ntohs(sin.sin_port));
+			ZEND_TRY_ASSIGN_REF_NEW_STR(arg2, recv_buf);
+			ZEND_TRY_ASSIGN_REF_STRING(arg5, address ? address : "0.0.0.0");
+			ZEND_TRY_ASSIGN_REF_LONG(arg6, ntohs(sin.sin_port));
 			break;
 #if HAVE_IPV6
 		case AF_INET6:
@@ -1714,34 +1852,30 @@ PHP_FUNCTION(socket_recvfrom)
 			sin6.sin6_family = AF_INET6;
 
 			if (arg6 == NULL) {
-				efree(recv_buf);
+				zend_string_efree(recv_buf);
 				WRONG_PARAM_COUNT;
 			}
 
-			retval = recvfrom(php_sock->bsd_socket, recv_buf->val, arg3, arg4, (struct sockaddr *)&sin6, (socklen_t *)&slen);
+			retval = recvfrom(php_sock->bsd_socket, ZSTR_VAL(recv_buf), arg3, arg4, (struct sockaddr *)&sin6, (socklen_t *)&slen);
 
 			if (retval < 0) {
 				PHP_SOCKET_ERROR(php_sock, "unable to recvfrom", errno);
-				zend_string_free(recv_buf);
+				zend_string_efree(recv_buf);
 				RETURN_FALSE;
 			}
-			recv_buf->len = retval;
-			recv_buf->val[recv_buf->len] = '\0';
-
-			zval_dtor(arg2);
-			zval_dtor(arg5);
-			zval_dtor(arg6);
+			ZSTR_LEN(recv_buf) = retval;
+			ZSTR_VAL(recv_buf)[ZSTR_LEN(recv_buf)] = '\0';
 
 			memset(addr6, 0, INET6_ADDRSTRLEN);
 			inet_ntop(AF_INET6, &sin6.sin6_addr, addr6, INET6_ADDRSTRLEN);
 
-			ZVAL_NEW_STR(arg2, recv_buf);
-			ZVAL_STRING(arg5, addr6[0] ? addr6 : "::");
-			ZVAL_LONG(arg6, ntohs(sin6.sin6_port));
+			ZEND_TRY_ASSIGN_REF_NEW_STR(arg2, recv_buf);
+			ZEND_TRY_ASSIGN_REF_STRING(arg5, addr6[0] ? addr6 : "::");
+			ZEND_TRY_ASSIGN_REF_LONG(arg6, ntohs(sin6.sin6_port));
 			break;
 #endif
 		default:
-			php_error_docref(NULL TSRMLS_CC, E_WARNING, "Unsupported socket type %d", php_sock->type);
+			php_error_docref(NULL, E_WARNING, "Unsupported socket type %d", php_sock->type);
 			RETURN_FALSE;
 	}
 
@@ -1766,11 +1900,18 @@ PHP_FUNCTION(socket_sendto)
 	char				*buf, *addr;
 	int					argc = ZEND_NUM_ARGS();
 
-	if (zend_parse_parameters(argc TSRMLS_CC, "rslls|l", &arg1, &buf, &buf_len, &len, &flags, &addr, &addr_len, &port) == FAILURE) {
+	if (zend_parse_parameters(argc, "rslls|l", &arg1, &buf, &buf_len, &len, &flags, &addr, &addr_len, &port) == FAILURE) {
 		return;
 	}
 
-	ZEND_FETCH_RESOURCE(php_sock, php_socket *, arg1, -1, le_socket_name, le_socket);
+	if (len < 0) {
+		php_error_docref(NULL, E_WARNING, "Length cannot be negative");
+		RETURN_FALSE;
+	}
+
+	if ((php_sock = (php_socket *)zend_fetch_resource(Z_RES_P(arg1), le_socket_name, le_socket)) == NULL) {
+		RETURN_FALSE;
+	}
 
 	switch (php_sock->type) {
 		case AF_UNIX:
@@ -1778,7 +1919,7 @@ PHP_FUNCTION(socket_sendto)
 			s_un.sun_family = AF_UNIX;
 			snprintf(s_un.sun_path, 108, "%s", addr);
 
-			retval = sendto(php_sock->bsd_socket, buf, (len > buf_len) ? buf_len : len,	flags, (struct sockaddr *) &s_un, SUN_LEN(&s_un));
+			retval = sendto(php_sock->bsd_socket, buf, ((size_t)len > buf_len) ? buf_len : (size_t)len,	flags, (struct sockaddr *) &s_un, SUN_LEN(&s_un));
 			break;
 
 		case AF_INET:
@@ -1790,11 +1931,11 @@ PHP_FUNCTION(socket_sendto)
 			sin.sin_family = AF_INET;
 			sin.sin_port = htons((unsigned short) port);
 
-			if (! php_set_inet_addr(&sin, addr, php_sock TSRMLS_CC)) {
+			if (! php_set_inet_addr(&sin, addr, php_sock)) {
 				RETURN_FALSE;
 			}
 
-			retval = sendto(php_sock->bsd_socket, buf, (len > buf_len) ? buf_len : len, flags, (struct sockaddr *) &sin, sizeof(sin));
+			retval = sendto(php_sock->bsd_socket, buf, ((size_t)len > buf_len) ? buf_len : (size_t)len, flags, (struct sockaddr *) &sin, sizeof(sin));
 			break;
 #if HAVE_IPV6
 		case AF_INET6:
@@ -1806,15 +1947,15 @@ PHP_FUNCTION(socket_sendto)
 			sin6.sin6_family = AF_INET6;
 			sin6.sin6_port = htons((unsigned short) port);
 
-			if (! php_set_inet6_addr(&sin6, addr, php_sock TSRMLS_CC)) {
+			if (! php_set_inet6_addr(&sin6, addr, php_sock)) {
 				RETURN_FALSE;
 			}
 
-			retval = sendto(php_sock->bsd_socket, buf, (len > buf_len) ? buf_len : len, flags, (struct sockaddr *) &sin6, sizeof(sin6));
+			retval = sendto(php_sock->bsd_socket, buf, ((size_t)len > buf_len) ? buf_len : (size_t)len, flags, (struct sockaddr *) &sin6, sizeof(sin6));
 			break;
 #endif
 		default:
-			php_error_docref(NULL TSRMLS_CC, E_WARNING, "Unsupported socket type %d", php_sock->type);
+			php_error_docref(NULL, E_WARNING, "Unsupported socket type %d", php_sock->type);
 			RETURN_FALSE;
 	}
 
@@ -1827,7 +1968,7 @@ PHP_FUNCTION(socket_sendto)
 }
 /* }}} */
 
-/* {{{ proto mixed socket_get_option(resource socket, int level, int optname) 
+/* {{{ proto mixed socket_get_option(resource socket, int level, int optname)
    Gets socket options for the socket */
 PHP_FUNCTION(socket_get_option)
 {
@@ -1842,11 +1983,13 @@ PHP_FUNCTION(socket_get_option)
 	int				other_val;
 	zend_long			level, optname;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rll", &arg1, &level, &optname) == FAILURE) {
+	if (zend_parse_parameters(ZEND_NUM_ARGS(), "rll", &arg1, &level, &optname) == FAILURE) {
 		return;
 	}
 
-	ZEND_FETCH_RESOURCE(php_sock, php_socket *, arg1, -1, le_socket_name, le_socket);
+	if ((php_sock = (php_socket *)zend_fetch_resource(Z_RES_P(arg1), le_socket_name, le_socket)) == NULL) {
+		RETURN_FALSE;
+	}
 
 	if (level == IPPROTO_IP) {
 		switch (optname) {
@@ -1858,7 +2001,7 @@ PHP_FUNCTION(socket_get_option)
 				PHP_SOCKET_ERROR(php_sock, "unable to retrieve socket option", errno);
 				RETURN_FALSE;
 			}
-			if (php_add4_to_if_index(&if_addr, php_sock, &if_index TSRMLS_CC) == SUCCESS) {
+			if (php_add4_to_if_index(&if_addr, php_sock, &if_index) == SUCCESS) {
 				RETURN_LONG((zend_long) if_index);
 			} else {
 				RETURN_FALSE;
@@ -1868,7 +2011,7 @@ PHP_FUNCTION(socket_get_option)
 	}
 #if HAVE_IPV6
 	else if (level == IPPROTO_IPV6) {
-		int ret = php_do_getsockopt_ipv6_rfc3542(php_sock, level, optname, return_value TSRMLS_CC);
+		int ret = php_do_getsockopt_ipv6_rfc3542(php_sock, level, optname, return_value);
 		if (ret == SUCCESS) {
 			return;
 		} else if (ret == FAILURE) {
@@ -1955,11 +2098,13 @@ PHP_FUNCTION(socket_set_option)
 	zval		 			*sec, *usec;
 
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rllz", &arg1, &level, &optname, &arg4) == FAILURE) {
+	if (zend_parse_parameters(ZEND_NUM_ARGS(), "rllz", &arg1, &level, &optname, &arg4) == FAILURE) {
 		return;
 	}
 
-	ZEND_FETCH_RESOURCE(php_sock, php_socket *, arg1, -1, le_socket_name, le_socket);
+	if ((php_sock = (php_socket *)zend_fetch_resource(Z_RES_P(arg1), le_socket_name, le_socket)) == NULL) {
+		RETURN_FALSE;
+	}
 
 	set_errno(0);
 
@@ -1972,15 +2117,15 @@ PHP_FUNCTION(socket_set_option)
 
 
 	if (level == IPPROTO_IP) {
-		int res = php_do_setsockopt_ip_mcast(php_sock, level, optname, arg4 TSRMLS_CC);
+		int res = php_do_setsockopt_ip_mcast(php_sock, level, optname, arg4);
 		HANDLE_SUBCALL(res);
 	}
 
 #if HAVE_IPV6
 	else if (level == IPPROTO_IPV6) {
-		int res = php_do_setsockopt_ipv6_mcast(php_sock, level, optname, arg4 TSRMLS_CC);
+		int res = php_do_setsockopt_ipv6_mcast(php_sock, level, optname, arg4);
 		if (res == 1) {
-			res = php_do_setsockopt_ipv6_rfc3542(php_sock, level, optname, arg4 TSRMLS_CC);
+			res = php_do_setsockopt_ipv6_rfc3542(php_sock, level, optname, arg4);
 		}
 		HANDLE_SUBCALL(res);
 	}
@@ -1992,14 +2137,14 @@ PHP_FUNCTION(socket_set_option)
 			const char l_linger_key[] = "l_linger";
 
 			convert_to_array_ex(arg4);
-			opt_ht = HASH_OF(arg4);
+			opt_ht = Z_ARRVAL_P(arg4);
 
 			if ((l_onoff = zend_hash_str_find(opt_ht, l_onoff_key, sizeof(l_onoff_key) - 1)) == NULL) {
-				php_error_docref(NULL TSRMLS_CC, E_WARNING, "no key \"%s\" passed in optval", l_onoff_key);
+				php_error_docref(NULL, E_WARNING, "no key \"%s\" passed in optval", l_onoff_key);
 				RETURN_FALSE;
 			}
 			if ((l_linger = zend_hash_str_find(opt_ht, l_linger_key, sizeof(l_linger_key) - 1)) == NULL) {
-				php_error_docref(NULL TSRMLS_CC, E_WARNING, "no key \"%s\" passed in optval", l_linger_key);
+				php_error_docref(NULL, E_WARNING, "no key \"%s\" passed in optval", l_linger_key);
 				RETURN_FALSE;
 			}
 
@@ -2020,14 +2165,14 @@ PHP_FUNCTION(socket_set_option)
 			const char usec_key[] = "usec";
 
 			convert_to_array_ex(arg4);
-			opt_ht = HASH_OF(arg4);
+			opt_ht = Z_ARRVAL_P(arg4);
 
 			if ((sec = zend_hash_str_find(opt_ht, sec_key, sizeof(sec_key) - 1)) == NULL) {
-				php_error_docref(NULL TSRMLS_CC, E_WARNING, "no key \"%s\" passed in optval", sec_key);
+				php_error_docref(NULL, E_WARNING, "no key \"%s\" passed in optval", sec_key);
 				RETURN_FALSE;
 			}
 			if ((usec = zend_hash_str_find(opt_ht, usec_key, sizeof(usec_key) - 1)) == NULL) {
-				php_error_docref(NULL TSRMLS_CC, E_WARNING, "no key \"%s\" passed in optval", usec_key);
+				php_error_docref(NULL, E_WARNING, "no key \"%s\" passed in optval", usec_key);
 				RETURN_FALSE;
 			}
 
@@ -2079,7 +2224,7 @@ default_case:
 /* }}} */
 
 #ifdef HAVE_SOCKETPAIR
-/* {{{ proto bool socket_create_pair(int domain, int type, int protocol, array &fd) 
+/* {{{ proto bool socket_create_pair(int domain, int type, int protocol, array &fd)
    Creates a pair of indistinguishable sockets and stores them in fds. */
 PHP_FUNCTION(socket_create_pair)
 {
@@ -2088,7 +2233,7 @@ PHP_FUNCTION(socket_create_pair)
 	PHP_SOCKET	fds_array[2];
 	zend_long		domain, type, protocol;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "lllz/", &domain, &type, &protocol, &fds_array_zval) == FAILURE) {
+	if (zend_parse_parameters(ZEND_NUM_ARGS(), "lllz", &domain, &type, &protocol, &fds_array_zval) == FAILURE) {
 		return;
 	}
 
@@ -2100,25 +2245,29 @@ PHP_FUNCTION(socket_create_pair)
 		&& domain != AF_INET6
 #endif
 		&& domain != AF_UNIX) {
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "invalid socket domain [%pd] specified for argument 1, assuming AF_INET", domain);
+		php_error_docref(NULL, E_WARNING, "invalid socket domain [" ZEND_LONG_FMT "] specified for argument 1, assuming AF_INET", domain);
 		domain = AF_INET;
 	}
 
 	if (type > 10) {
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "invalid socket type [%pd] specified for argument 2, assuming SOCK_STREAM", type);
+		php_error_docref(NULL, E_WARNING, "invalid socket type [" ZEND_LONG_FMT "] specified for argument 2, assuming SOCK_STREAM", type);
 		type = SOCK_STREAM;
 	}
 
 	if (socketpair(domain, type, protocol, fds_array) != 0) {
 		SOCKETS_G(last_error) = errno;
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "unable to create socket pair [%d]: %s", errno, sockets_strerror(errno TSRMLS_CC));
+		php_error_docref(NULL, E_WARNING, "unable to create socket pair [%d]: %s", errno, sockets_strerror(errno));
 		efree(php_sock[0]);
 		efree(php_sock[1]);
 		RETURN_FALSE;
 	}
 
-	zval_dtor(fds_array_zval);
-	array_init(fds_array_zval);
+	fds_array_zval = zend_try_array_init(fds_array_zval);
+	if (!fds_array_zval) {
+		efree(php_sock[0]);
+		efree(php_sock[1]);
+		return;
+	}
 
 	php_sock[0]->bsd_socket = fds_array[0];
 	php_sock[1]->bsd_socket = fds_array[1];
@@ -2129,8 +2278,8 @@ PHP_FUNCTION(socket_create_pair)
 	php_sock[0]->blocking	= 1;
 	php_sock[1]->blocking	= 1;
 
-	ZEND_REGISTER_RESOURCE(&retval[0], php_sock[0], le_socket);
-	ZEND_REGISTER_RESOURCE(&retval[1], php_sock[1], le_socket);
+	ZVAL_RES(&retval[0], zend_register_resource(php_sock[0], le_socket));
+	ZVAL_RES(&retval[1], zend_register_resource(php_sock[1], le_socket));
 
 	add_index_zval(fds_array_zval, 0, &retval[0]);
 	add_index_zval(fds_array_zval, 1, &retval[1]);
@@ -2141,7 +2290,7 @@ PHP_FUNCTION(socket_create_pair)
 #endif
 
 #ifdef HAVE_SHUTDOWN
-/* {{{ proto bool socket_shutdown(resource socket[, int how]) 
+/* {{{ proto bool socket_shutdown(resource socket[, int how])
    Shuts down a socket for receiving, sending, or both. */
 PHP_FUNCTION(socket_shutdown)
 {
@@ -2149,11 +2298,13 @@ PHP_FUNCTION(socket_shutdown)
 	zend_long		how_shutdown = 2;
 	php_socket	*php_sock;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "r|l", &arg1, &how_shutdown) == FAILURE) {
+	if (zend_parse_parameters(ZEND_NUM_ARGS(), "r|l", &arg1, &how_shutdown) == FAILURE) {
 		return;
 	}
 
-	ZEND_FETCH_RESOURCE(php_sock, php_socket*, arg1, -1, le_socket_name, le_socket);
+	if ((php_sock = (php_socket *)zend_fetch_resource(Z_RES_P(arg1), le_socket_name, le_socket)) == NULL) {
+		RETURN_FALSE;
+	}
 
 	if (shutdown(php_sock->bsd_socket, how_shutdown) != 0) {
 		PHP_SOCKET_ERROR(php_sock, "unable to shutdown socket", errno);
@@ -2165,19 +2316,21 @@ PHP_FUNCTION(socket_shutdown)
 /* }}} */
 #endif
 
-/* {{{ proto int socket_last_error([resource socket]) 
+/* {{{ proto int socket_last_error([resource socket])
    Returns the last socket error (either the last used or the provided socket resource) */
 PHP_FUNCTION(socket_last_error)
 {
 	zval		*arg1 = NULL;
 	php_socket	*php_sock;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|r", &arg1) == FAILURE) {
+	if (zend_parse_parameters(ZEND_NUM_ARGS(), "|r", &arg1) == FAILURE) {
 		return;
 	}
 
 	if (arg1) {
-		ZEND_FETCH_RESOURCE(php_sock, php_socket*, arg1, -1, le_socket_name, le_socket);
+		if ((php_sock = (php_socket *)zend_fetch_resource(Z_RES_P(arg1), le_socket_name, le_socket)) == NULL) {
+			RETURN_FALSE;
+		}
 		RETVAL_LONG(php_sock->error);
 	} else {
 		RETVAL_LONG(SOCKETS_G(last_error));
@@ -2185,19 +2338,21 @@ PHP_FUNCTION(socket_last_error)
 }
 /* }}} */
 
-/* {{{ proto void socket_clear_error([resource socket]) 
+/* {{{ proto void socket_clear_error([resource socket])
    Clears the error on the socket or the last error code. */
 PHP_FUNCTION(socket_clear_error)
 {
 	zval		*arg1 = NULL;
 	php_socket	*php_sock;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|r", &arg1) == FAILURE) {
+	if (zend_parse_parameters(ZEND_NUM_ARGS(), "|r", &arg1) == FAILURE) {
 		return;
 	}
 
 	if (arg1) {
-		ZEND_FETCH_RESOURCE(php_sock, php_socket*, arg1, -1, le_socket_name, le_socket);
+		if ((php_sock = (php_socket *)zend_fetch_resource(Z_RES_P(arg1), le_socket_name, le_socket)) == NULL) {
+			RETURN_FALSE;
+		}
 		php_sock->error = 0;
 	} else {
 		SOCKETS_G(last_error) = 0;
@@ -2207,7 +2362,7 @@ PHP_FUNCTION(socket_clear_error)
 }
 /* }}} */
 
-php_socket *socket_import_file_descriptor(PHP_SOCKET socket TSRMLS_DC)
+php_socket *socket_import_file_descriptor(PHP_SOCKET socket)
 {
 #ifdef SO_DOMAIN
 	int						type;
@@ -2254,7 +2409,7 @@ error:
 	return NULL;
 }
 
-/* {{{ proto void socket_import_stream(resource stream)
+/* {{{ proto resource socket_import_stream(resource stream)
    Imports a stream that encapsulates a socket into a socket extension resource. */
 PHP_FUNCTION(socket_import_stream)
 {
@@ -2263,7 +2418,7 @@ PHP_FUNCTION(socket_import_stream)
 	php_socket			 *retsock = NULL;
 	PHP_SOCKET			 socket; /* fd */
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "r", &zstream) == FAILURE) {
+	if (zend_parse_parameters(ZEND_NUM_ARGS(), "r", &zstream) == FAILURE) {
 		return;
 	}
 	php_stream_from_zval(stream, zstream);
@@ -2273,7 +2428,7 @@ PHP_FUNCTION(socket_import_stream)
 		RETURN_FALSE;
 	}
 
-	retsock = socket_import_file_descriptor(socket TSRMLS_CC);
+	retsock = socket_import_file_descriptor(socket);
 	if (retsock == NULL) {
 		RETURN_FALSE;
 	}
@@ -2290,22 +2445,490 @@ PHP_FUNCTION(socket_import_stream)
 #endif
 
 	/* hold a zval reference to the stream (holding a php_stream* directly could
-	 * also be done, but this might be slightly better if in the future we want
-	 * to provide a socket_export_stream) */
+	 * also be done, but this makes socket_export_stream a bit simpler) */
 	ZVAL_COPY(&retsock->zstream, zstream);
 
 	php_stream_set_option(stream, PHP_STREAM_OPTION_READ_BUFFER,
 		PHP_STREAM_BUFFER_NONE, NULL);
 
-	ZEND_REGISTER_RESOURCE(return_value, retsock, le_socket);
+	RETURN_RES(zend_register_resource(retsock, le_socket));
 }
 /* }}} */
 
-/*
- * Local variables:
- * tab-width: 4
- * c-basic-offset: 4
- * End:
- * vim600: fdm=marker
- * vim: noet sw=4 ts=4
- */
+/* {{{ proto resource socket_export_stream(resource socket)
+   Exports a socket extension resource into a stream that encapsulates a socket. */
+PHP_FUNCTION(socket_export_stream)
+{
+	zval *zsocket;
+	php_socket *socket;
+	php_stream *stream = NULL;
+	php_netstream_data_t *stream_data;
+	char *protocol = NULL;
+	size_t protocollen = 0;
+
+	if (zend_parse_parameters(ZEND_NUM_ARGS(), "r", &zsocket) == FAILURE) {
+		return;
+	}
+	if ((socket = (php_socket *) zend_fetch_resource(Z_RES_P(zsocket), le_socket_name, le_socket)) == NULL) {
+		RETURN_FALSE;
+	}
+
+	/* Either we already exported a stream or the socket came from an import,
+	 * just return the existing stream */
+	if (!Z_ISUNDEF(socket->zstream)) {
+		RETURN_ZVAL(&socket->zstream, 1, 0);
+	}
+
+	/* Determine if socket is using a protocol with one of the default registered
+	 * socket stream wrappers */
+	if (socket->type == PF_INET
+#if HAVE_IPV6
+		 || socket->type == PF_INET6
+#endif
+	) {
+		int protoid;
+		socklen_t protoidlen = sizeof(protoid);
+
+		getsockopt(socket->bsd_socket, SOL_SOCKET, SO_TYPE, (char *) &protoid, &protoidlen);
+
+		if (protoid == SOCK_STREAM) {
+			/* SO_PROTOCOL is not (yet?) supported on OS X, so lets assume it's TCP there */
+#ifdef SO_PROTOCOL
+			protoidlen = sizeof(protoid);
+			getsockopt(socket->bsd_socket, SOL_SOCKET, SO_PROTOCOL, (char *) &protoid, &protoidlen);
+			if (protoid == IPPROTO_TCP)
+#endif
+			{
+				protocol = "tcp";
+				protocollen = 3;
+			}
+		} else if (protoid == SOCK_DGRAM) {
+			protocol = "udp";
+			protocollen = 3;
+		}
+#ifdef PF_UNIX
+	} else if (socket->type == PF_UNIX) {
+		int type;
+		socklen_t typelen = sizeof(type);
+
+		getsockopt(socket->bsd_socket, SOL_SOCKET, SO_TYPE, (char *) &type, &typelen);
+
+		if (type == SOCK_STREAM) {
+			protocol = "unix";
+			protocollen = 4;
+		} else if (type == SOCK_DGRAM) {
+			protocol = "udg";
+			protocollen = 3;
+		}
+#endif
+	}
+
+	/* Try to get a stream with the registered sockops for the protocol in use
+	 * We don't want streams to actually *do* anything though, so don't give it
+	 * anything apart from the protocol */
+	if (protocol != NULL) {
+		stream = php_stream_xport_create(protocol, protocollen, 0, 0, NULL, NULL, NULL, NULL, NULL);
+	}
+
+	/* Fall back to creating a generic socket stream */
+	if (stream == NULL) {
+		stream = php_stream_sock_open_from_socket(socket->bsd_socket, 0);
+
+		if (stream == NULL) {
+			php_error_docref(NULL, E_WARNING, "failed to create stream");
+			RETURN_FALSE;
+		}
+	}
+
+	stream_data = (php_netstream_data_t *) stream->abstract;
+	stream_data->socket = socket->bsd_socket;
+	stream_data->is_blocked = socket->blocking;
+	stream_data->timeout.tv_sec = FG(default_socket_timeout);
+	stream_data->timeout.tv_usec = 0;
+
+	php_stream_to_zval(stream, &socket->zstream);
+
+	RETURN_ZVAL(&socket->zstream, 1, 0);
+}
+/* }}} */
+
+/* {{{ proto resource addrinfo socket_addrinfo_lookup(string hostname[, mixed service, array hints])
+   Gets array with contents of getaddrinfo about the given hostname. */
+PHP_FUNCTION(socket_addrinfo_lookup)
+{
+	char *service = NULL;
+	size_t service_len;
+	zend_string *hostname, *key;
+	zval *hint, *zhints = NULL;
+
+	struct addrinfo hints, *result, *rp, *res;
+
+	memset(&hints, 0, sizeof(hints));
+
+	if (zend_parse_parameters(ZEND_NUM_ARGS(), "S|sa", &hostname, &service, &service_len, &zhints) == FAILURE) {
+		RETURN_NULL();
+	}
+
+	if (zhints) {
+		ZEND_HASH_FOREACH_STR_KEY_VAL(Z_ARRVAL_P(zhints), key, hint) {
+			if (key) {
+				if (zend_string_equals_literal(key, "ai_flags")) {
+					hints.ai_flags = zval_get_long(hint);
+				} else if (zend_string_equals_literal(key, "ai_socktype")) {
+					hints.ai_socktype = zval_get_long(hint);
+				} else if (zend_string_equals_literal(key, "ai_protocol")) {
+					hints.ai_protocol = zval_get_long(hint);
+				} else if (zend_string_equals_literal(key, "ai_family")) {
+					hints.ai_family = zval_get_long(hint);
+				} else {
+					php_error_docref(NULL, E_NOTICE, "Unknown hint %s", ZSTR_VAL(key));
+				}
+			}
+		} ZEND_HASH_FOREACH_END();
+	}
+
+	if (getaddrinfo(ZSTR_VAL(hostname), service, &hints, &result) != 0) {
+		RETURN_FALSE;
+	}
+
+	array_init(return_value);
+
+	for (rp = result; rp != NULL; rp = rp->ai_next) {
+		if (rp->ai_family != AF_UNSPEC) {
+			res = emalloc(sizeof(struct addrinfo));
+			memcpy(res, rp, sizeof(struct addrinfo));
+
+			res->ai_addr = emalloc(rp->ai_addrlen);
+			memcpy(res->ai_addr, rp->ai_addr, rp->ai_addrlen);
+
+			if (rp->ai_canonname != NULL) {
+				res->ai_canonname = estrdup(rp->ai_canonname);
+			}
+
+			add_next_index_resource(return_value, zend_register_resource(res, le_addrinfo));
+		}
+	}
+
+	freeaddrinfo(result);
+}
+/* }}} */
+
+/* {{{ proto resource socket_addrinfo_bind(resource addrinfo)
+   Creates and binds to a socket from a given addrinfo resource */
+PHP_FUNCTION(socket_addrinfo_bind)
+{
+	zval			*arg1;
+	int				retval;
+	struct addrinfo	*ai;
+	php_socket		*php_sock;
+
+	if (zend_parse_parameters(ZEND_NUM_ARGS(), "r", &arg1) == FAILURE) {
+		return;
+	}
+
+	if ((ai = (struct addrinfo *) zend_fetch_resource(Z_RES_P(arg1), le_addrinfo_name, le_addrinfo)) == NULL) {
+		RETURN_FALSE;
+	}
+
+	php_sock = php_create_socket();
+	php_sock->bsd_socket = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
+	php_sock->type = ai->ai_family;
+
+	if (IS_INVALID_SOCKET(php_sock)) {
+		SOCKETS_G(last_error) = errno;
+		php_error_docref(NULL, E_WARNING, "Unable to create socket [%d]: %s", errno, sockets_strerror(errno));
+		efree(php_sock);
+		RETURN_FALSE;
+	}
+
+	php_sock->error = 0;
+	php_sock->blocking = 1;
+
+	switch(php_sock->type) {
+		case AF_UNIX:
+			{
+				// AF_UNIX sockets via getaddrino are not implemented due to security problems
+				close(php_sock->bsd_socket);
+				efree(php_sock);
+				RETURN_FALSE;
+			}
+
+		case AF_INET:
+#if HAVE_IPV6
+		case AF_INET6:
+#endif
+			{
+				retval = bind(php_sock->bsd_socket, ai->ai_addr, ai->ai_addrlen);
+				break;
+			}
+		default:
+			php_error_docref(NULL, E_WARNING, "unsupported socket type '%d', must be AF_UNIX, AF_INET, or AF_INET6", php_sock->type);
+			close(php_sock->bsd_socket);
+			efree(php_sock);
+			RETURN_FALSE;
+	}
+
+	if (retval != 0) {
+		PHP_SOCKET_ERROR(php_sock, "unable to bind address", errno);
+		close(php_sock->bsd_socket);
+		efree(php_sock);
+		RETURN_FALSE;
+	}
+
+	RETURN_RES(zend_register_resource(php_sock, le_socket));
+}
+/* }}} */
+
+/* {{{ proto resource socket_addrinfo_connect(resource addrinfo)
+   Creates and connects to a socket from a given addrinfo resource */
+PHP_FUNCTION(socket_addrinfo_connect)
+{
+	zval			*arg1;
+	int				retval;
+	struct addrinfo	*ai;
+	php_socket		*php_sock;
+
+	if (zend_parse_parameters(ZEND_NUM_ARGS(), "r", &arg1) == FAILURE) {
+		return;
+	}
+
+	if ((ai = (struct addrinfo *) zend_fetch_resource(Z_RES_P(arg1), le_addrinfo_name, le_addrinfo)) == NULL) {
+		RETURN_FALSE;
+	}
+
+	php_sock = php_create_socket();
+	php_sock->bsd_socket = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
+	php_sock->type = ai->ai_family;
+
+	if (IS_INVALID_SOCKET(php_sock)) {
+		SOCKETS_G(last_error) = errno;
+		php_error_docref(NULL, E_WARNING, "Unable to create socket [%d]: %s", errno, sockets_strerror(errno));
+		efree(php_sock);
+		RETURN_FALSE;
+	}
+
+	php_sock->error = 0;
+	php_sock->blocking = 1;
+
+	switch(php_sock->type) {
+		case AF_UNIX:
+			{
+				// AF_UNIX sockets via getaddrino are not implemented due to security problems
+				close(php_sock->bsd_socket);
+				efree(php_sock);
+				RETURN_FALSE;
+			}
+
+		case AF_INET:
+#if HAVE_IPV6
+		case AF_INET6:
+#endif
+			{
+				retval = connect(php_sock->bsd_socket, ai->ai_addr, ai->ai_addrlen);
+				break;
+			}
+		default:
+			php_error_docref(NULL, E_WARNING, "unsupported socket type '%d', must be AF_UNIX, AF_INET, or AF_INET6", php_sock->type);
+			close(php_sock->bsd_socket);
+			efree(php_sock);
+			RETURN_FALSE;
+	}
+
+	if (retval != 0) {
+		PHP_SOCKET_ERROR(php_sock, "unable to connect address", errno);
+		close(php_sock->bsd_socket);
+		efree(php_sock);
+		RETURN_FALSE;
+	}
+
+	RETURN_RES(zend_register_resource(php_sock, le_socket));
+}
+/* }}} */
+
+/* {{{ proto resource socket_addrinfo_explain(resource addrinfo)
+   Creates and connects to a socket from a given addrinfo resource */
+PHP_FUNCTION(socket_addrinfo_explain)
+{
+	zval			*arg1, sockaddr;
+	struct addrinfo	*ai;
+
+	if (zend_parse_parameters(ZEND_NUM_ARGS(), "r", &arg1) == FAILURE) {
+		return;
+	}
+
+	if ((ai = (struct addrinfo *) zend_fetch_resource(Z_RES_P(arg1), le_addrinfo_name, le_addrinfo)) == NULL) {
+		RETURN_FALSE;
+	}
+
+	array_init(return_value);
+
+	add_assoc_long(return_value, "ai_flags", ai->ai_flags);
+	add_assoc_long(return_value, "ai_family", ai->ai_family);
+	add_assoc_long(return_value, "ai_socktype", ai->ai_socktype);
+	add_assoc_long(return_value, "ai_protocol", ai->ai_protocol);
+	if (ai->ai_canonname != NULL) {
+		add_assoc_string(return_value, "ai_canonname", ai->ai_canonname);
+	}
+
+	array_init(&sockaddr);
+	switch(ai->ai_family) {
+		case AF_INET:
+			{
+				struct sockaddr_in *sa = (struct sockaddr_in *) ai->ai_addr;
+				char addr[INET_ADDRSTRLEN];
+
+				add_assoc_long(&sockaddr, "sin_port", ntohs((unsigned short) sa->sin_port));
+				inet_ntop(ai->ai_family, &sa->sin_addr, addr, sizeof(addr));
+				add_assoc_string(&sockaddr, "sin_addr", addr);
+				break;
+			}
+#if HAVE_IPV6
+		case AF_INET6:
+			{
+				struct sockaddr_in6 *sa = (struct sockaddr_in6 *) ai->ai_addr;
+				char addr[INET6_ADDRSTRLEN];
+
+				add_assoc_long(&sockaddr, "sin6_port", ntohs((unsigned short) sa->sin6_port));
+				inet_ntop(ai->ai_family, &sa->sin6_addr, addr, sizeof(addr));
+				add_assoc_string(&sockaddr, "sin6_addr", addr);
+				break;
+			}
+#endif
+	}
+
+	add_assoc_zval(return_value, "ai_addr", &sockaddr);
+}
+/* }}} */
+
+#ifdef PHP_WIN32
+
+ /* {{{ proto string socket_wsaprotocol_info_export(resource stream, int target_pid)
+   Exports the network socket information suitable to be used in another process and returns the info id. */
+PHP_FUNCTION(socket_wsaprotocol_info_export)
+{
+	WSAPROTOCOL_INFO wi;
+	zval *zsocket;
+	php_socket *socket;
+	zend_long target_pid;
+	zend_string *seg_name;
+	HANDLE map;
+
+	if (zend_parse_parameters(ZEND_NUM_ARGS(), "rl", &zsocket, &target_pid) == FAILURE) {
+		return;
+	}
+	if ((socket = (php_socket *) zend_fetch_resource(Z_RES_P(zsocket), le_socket_name, le_socket)) == NULL) {
+		RETURN_FALSE;
+	}
+
+	if (SOCKET_ERROR == WSADuplicateSocket(socket->bsd_socket, (DWORD)target_pid, &wi)) {
+		DWORD err = WSAGetLastError();
+		char *buf = php_win32_error_to_msg(err);
+
+		if (!buf[0]) {
+			php_error_docref(NULL, E_WARNING, "Unable to export WSA protocol info [0x%08lx]", err);
+		} else {
+			php_error_docref(NULL, E_WARNING, "Unable to export WSA protocol info [0x%08lx]: %s", err, buf);
+		}
+
+		php_win32_error_msg_free(buf);
+
+		RETURN_FALSE;
+	}
+
+	seg_name = zend_strpprintf(0, "php_wsa_for_%u", SOCKETS_G(wsa_child_count)++);
+	map = CreateFileMapping(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0, sizeof(WSAPROTOCOL_INFO), ZSTR_VAL(seg_name));
+	if (NULL != map) {
+		LPVOID view = MapViewOfFile(map, FILE_MAP_WRITE, 0, 0, 0);
+		if (view) {
+			memcpy(view, &wi, sizeof(wi));
+			UnmapViewOfFile(view);
+			zend_hash_add_ptr(&(SOCKETS_G(wsa_info)), seg_name, map);
+			RETURN_STR(seg_name);
+		} else {
+			DWORD err = GetLastError();
+			php_error_docref(NULL, E_WARNING, "Unable to map file view [0x%08lx]", err);
+		}
+	} else {
+		DWORD err = GetLastError();
+		php_error_docref(NULL, E_WARNING, "Unable to create file mapping [0x%08lx]", err);
+	}
+	zend_string_release_ex(seg_name, 0);
+
+	RETURN_FALSE;
+}
+/* }}} */
+
+/* {{{ proto resource socket_wsaprotocol_info_import(string id)
+   Imports the network socket information using the supplied id and creates a new socket on its base. */
+PHP_FUNCTION(socket_wsaprotocol_info_import)
+{
+	char *id;
+	size_t id_len;
+	WSAPROTOCOL_INFO wi;
+	PHP_SOCKET sock;
+	php_socket	*php_sock;
+	HANDLE map;
+
+	if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &id, &id_len) == FAILURE) {
+		return;
+	}
+
+	map = OpenFileMapping(FILE_MAP_READ, FALSE, id);
+	if (map) {
+		LPVOID view = MapViewOfFile(map, FILE_MAP_READ, 0, 0, 0);
+		if (view) {
+			memcpy(&wi, view, sizeof(WSAPROTOCOL_INFO));
+			UnmapViewOfFile(view);
+		} else {
+			DWORD err = GetLastError();
+			php_error_docref(NULL, E_WARNING, "Unable to map file view [0x%08lx]", err);
+			RETURN_FALSE;
+		}
+		CloseHandle(map);
+	} else {
+		DWORD err = GetLastError();
+		php_error_docref(NULL, E_WARNING, "Unable to open file mapping [0x%08lx]", err);
+		RETURN_FALSE;
+	}
+
+	sock = WSASocket(FROM_PROTOCOL_INFO, FROM_PROTOCOL_INFO, FROM_PROTOCOL_INFO, &wi, 0, 0);
+	if (INVALID_SOCKET == sock) {
+		DWORD err = WSAGetLastError();
+		char *buf = php_win32_error_to_msg(err);
+
+		if (!buf[0]) {
+			php_error_docref(NULL, E_WARNING, "Unable to import WSA protocol info [0x%08lx]", err);
+		} else {
+			php_error_docref(NULL, E_WARNING, "Unable to import WSA protocol info [0x%08lx]: %s", err, buf);
+		}
+
+		php_win32_error_msg_free(buf);
+
+		RETURN_FALSE;
+	}
+
+	php_sock = php_create_socket();
+	php_sock->bsd_socket = sock;
+	php_sock->type = wi.iAddressFamily;
+	php_sock->error = 0;
+	php_sock->blocking = 1;
+
+	RETURN_RES(zend_register_resource(php_sock, le_socket));
+}
+/* }}} */
+
+/* {{{ proto bool socket_wsaprotocol_info_release(string id)
+   Frees the exported info and corresponding resources using the supplied id. */
+PHP_FUNCTION(socket_wsaprotocol_info_release)
+{
+	char *id;
+	size_t id_len;
+
+	if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &id, &id_len) == FAILURE) {
+		return;
+	}
+
+	RETURN_BOOL(SUCCESS == zend_hash_str_del(&(SOCKETS_G(wsa_info)), id, id_len));
+}
+/* }}} */
+#endif

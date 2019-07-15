@@ -5,7 +5,7 @@
  * LICENSE NOTICES
  *
  * This file is part of "streamable kanji code filter and converter",
- * which is distributed under the terms of GNU Lesser General Public 
+ * which is distributed under the terms of GNU Lesser General Public
  * License (version 2) as published by the Free Software Foundation.
  *
  * This software is distributed in the hope that it will be useful,
@@ -41,7 +41,9 @@ const mbfl_encoding mbfl_encoding_byte2be = {
 	NULL,
 	NULL,
 	NULL,
-	MBFL_ENCTYPE_SBCS
+	MBFL_ENCTYPE_SBCS,
+	&vtbl_byte2be_wchar,
+	&vtbl_wchar_byte2be
 };
 
 const mbfl_encoding mbfl_encoding_byte2le = {
@@ -50,7 +52,9 @@ const mbfl_encoding mbfl_encoding_byte2le = {
 	NULL,
 	NULL,
 	NULL,
-	MBFL_ENCTYPE_SBCS
+	MBFL_ENCTYPE_SBCS,
+	&vtbl_byte2le_wchar,
+	&vtbl_wchar_byte2le
 };
 
 const struct mbfl_convert_vtbl vtbl_byte2be_wchar = {
@@ -133,5 +137,3 @@ int mbfl_filt_conv_wchar_byte2le(int c, mbfl_convert_filter *filter)
 	CK((*filter->output_function)((c >> 8) & 0xff, filter->data));
 	return c;
 }
-
-

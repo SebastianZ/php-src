@@ -1,58 +1,63 @@
-Patches applied to file 5.17 sources tree before generating magic.mgc
-and before running create_data_file.php to create data_file.c.
-
-
-
-From 0b478f445b6b7540b58af5d1fe583fa9e48fd745 Mon Sep 17 00:00:00 2001
-From: Christos Zoulas <christos@zoulas.com>
-Date: Wed, 28 May 2014 19:52:36 +0000
-Subject: [PATCH] further optimize awk by not looking for the BEGIN regex until
- we found the BEGIN (Jan Kaluza)
-
----
- magic/Magdir/commands | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
-
-diff --git a/magic/Magdir/commands b/magic/Magdir/commands
-index bfffdef..26b2869 100644
---- a/magic/Magdir/commands
-+++ b/magic/Magdir/commands
-@@ -49,7 +49,8 @@
- !:mime	text/x-awk
- 0	string/wt	#!\ /usr/bin/awk	awk script text executable
- !:mime	text/x-awk
--0	regex		=^\\s{0,100}BEGIN\\s{0,100}[{]	awk script text
-+0       search/16384    BEGIN
-+>0	regex		=^\\s{0,100}BEGIN\\s{0,100}[{]	awk script text
+diff --git a/magic/Magdir/rpm b/magic/Magdir/rpm
+index 9a795f8..31db083 100644
+--- a/magic/Magdir/rpm
++++ b/magic/Magdir/rpm
+@@ -29,6 +29,7 @@
+ >>8	beshort		17		SuperH
+ >>8	beshort		18		Xtensa
+ >>8	beshort		255		noarch
++>>10	string		x		%s
  
- # AT&T Bell Labs' Plan 9 shell
- 0	string/wt	#!\ /bin/rc	Plan 9 rc shell script text executable
--- 
-2.0.3
+ #delta RPM    Daniel Novotny (dnovotny@redhat.com)
+ 0	string		drpm		Delta RPM
+diff --git a/magic/Magdir/securitycerts b/magic/Magdir/securitycerts
+index 8785dd8..1c340be 100644
+--- a/magic/Magdir/securitycerts
++++ b/magic/Magdir/securitycerts
+@@ -4,3 +4,5 @@
+ 0	search/1		-----BEGIN\ CERTIFICATE------	RFC1421 Security Certificate text
+ 0	search/1		-----BEGIN\ NEW\ CERTIFICATE	RFC1421 Security Certificate Signing Request text
+ 0	belong	0xedfeedfe	Sun 'jks' Java Keystore File data
++
++0	string \0volume_key	volume_key escrow packet
 
-From 71a8b6c0d758acb0f73e2e51421a711b5e9d6668 Mon Sep 17 00:00:00 2001
-From: Christos Zoulas <christos@zoulas.com>
-Date: Fri, 30 May 2014 16:48:44 +0000
-Subject: [PATCH] Limit regex search for BEGIN to the first 4K of the file.
 
----
- magic/Magdir/commands | 5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
-
-diff --git a/magic/Magdir/commands b/magic/Magdir/commands
-index 26b2869..bcd0f43 100644
---- a/magic/Magdir/commands
-+++ b/magic/Magdir/commands
-@@ -49,8 +49,7 @@
- !:mime	text/x-awk
- 0	string/wt	#!\ /usr/bin/awk	awk script text executable
- !:mime	text/x-awk
--0       search/16384    BEGIN
-->0	regex		=^\\s{0,100}BEGIN\\s{0,100}[{]	awk script text
-+0	regex/4096	=^\\s{0,100}BEGIN\\s{0,100}[{]	awk script text
- 
- # AT&T Bell Labs' Plan 9 shell
- 0	string/wt	#!\ /bin/rc	Plan 9 rc shell script text executable
--- 
-2.0.3
-
+--- a/magic.orig.0/Magdir/images	2019-04-19 02:42:27.000000000 +0200
++++ b/magic/Magdir/images	2019-06-29 16:09:31.654107495 +0200
+@@ -30,22 +30,22 @@
+ # Prevent conflicts with CRI ADX.
+ >(2.S-2) belong	!0x28632943
+ # skip more garbage like *.iso by looking for positive image type
+->>2	ubyte			>0
++>2	ubyte			>0
+ # skip some compiled terminfo like xterm+tmux by looking for image type less equal 33
+->>>2	ubyte			<34
++>>2	ubyte			<34
+ # skip arches.3200 , Finder.Root , Slp.1 by looking for low pixel depth 1 8 15 16 24 32
+->>>>16	ubyte			1
+->>>>>0		use		tga-image
+->>>>16	ubyte			8
+->>>>>0		use		tga-image
+->>>>16	ubyte			15
+->>>>>0		use		tga-image
+->>>>16	ubyte			16
+->>>>>0		use		tga-image
+->>>>16	ubyte			24
+->>>>>0		use		tga-image
+->>>>16	ubyte			32
+->>>>>0		use		tga-image
++>>>16	ubyte			1
++>>>>0		use		tga-image
++>>>16	ubyte			8
++>>>>0		use		tga-image
++>>>16	ubyte			15
++>>>>0		use		tga-image
++>>>16	ubyte			16
++>>>>0		use		tga-image
++>>>16	ubyte			24
++>>>>0		use		tga-image
++>>>16	ubyte			32
++>>>>0		use		tga-image
+ #	display tga bitmap image information
+ 0	name				tga-image
+ >2	ubyte		<34		Targa image data

@@ -21,20 +21,22 @@ putenv('TZ=UTC');
 //		-uses --INI-- section with date.timezone=UTC
 //		-uses putenv('TZ=UTC')
 // date.timezone=UTC
-//		-if ommitted from easter_date.phpt, outputs DATE_TZ_ERRMSG warning
+//		-if omitted from easter_date.phpt, outputs DATE_TZ_ERRMSG warning
 //			-easter_date() calls mktime() and localtime()
 //			-whereas unixtojd(1000000000) calls localtime(1000000000)
-//		-if ommitted from unixtojd.phpt, does NOT output DATE_TZ_ERRMSG
+//		-if omitted from unixtojd.phpt, does NOT output DATE_TZ_ERRMSG
 //
 // unixtojd() calls php_localtime_r() which for Pacific timezone systems, returns a time -8 hours
 //		-this incorrect localtime is passed to the julian date conversion (GregorianToSDN) function which works (probably correctly)
 //			but returns -1 day from expected because its input is -1 from expected
 
+echo unixtojd(). "\n";
 echo unixtojd(40000). "\n";
 echo unixtojd(1000000000). "\n";
 echo unixtojd(1152459009). "\n";
 ?>
---EXPECT--
+--EXPECTF--
+%d
 2440588
 2452162
 2453926

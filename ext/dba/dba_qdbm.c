@@ -2,7 +2,7 @@
   +----------------------------------------------------------------------+
   | PHP Version 7                                                        |
   +----------------------------------------------------------------------+
-  | Copyright (c) 1997-2014 The PHP Group                                |
+  | Copyright (c) The PHP Group                                          |
   +----------------------------------------------------------------------+
   | This source file is subject to version 3.01 of the PHP license,      |
   | that is bundled with this package in the file LICENSE, and is        |
@@ -15,8 +15,6 @@
   | Author: Marcin Gibula <mg@iceni.pl>                                  |
   +----------------------------------------------------------------------+
 */
-
-/* $Id$ */
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -102,7 +100,7 @@ DBA_UPDATE_FUNC(qdbm)
 	}
 
 	if (dpecode != DP_EKEEP) {
-		php_error_docref2(NULL TSRMLS_CC, key, val, E_WARNING, "%s", dperrmsg(dpecode));
+		php_error_docref2(NULL, key, val, E_WARNING, "%s", dperrmsg(dpecode));
 	}
 
 	return FAILURE;
@@ -185,12 +183,3 @@ DBA_INFO_FUNC(qdbm)
 }
 
 #endif
-
-/*
- * Local variables:
- * tab-width: 4
- * c-basic-offset: 4
- * End:
- * vim600: sw=4 ts=4 fdm=marker
- * vim<600: sw=4 ts=4
- */

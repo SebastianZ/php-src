@@ -1,5 +1,3 @@
-
-	/* $Id: fpm_sockets.h,v 1.12 2008/08/26 15:09:15 anight Exp $ */
 	/* (c) 2007,2008 Andrei Nigmatulin */
 
 #ifndef FPM_MISC_H
@@ -19,8 +17,11 @@
 #if (__FreeBSD__) || (__OpenBSD__)
 #define FPM_BACKLOG_DEFAULT -1
 #else
-#define FPM_BACKLOG_DEFAULT 65535
+#define FPM_BACKLOG_DEFAULT 511
 #endif
+
+#define FPM_ENV_SOCKET_SET_MAX 256
+#define FPM_ENV_SOCKET_SET_SIZE 128
 
 enum fpm_address_domain fpm_sockets_domain_from_address(char *addr);
 int fpm_sockets_init_main();
@@ -44,11 +45,5 @@ static inline int fd_set_blocked(int fd, int blocked) /* {{{ */
 	return fcntl(fd, F_SETFL, flags);
 }
 /* }}} */
-
-#define IPQUAD(sin_addr) \
-			(unsigned int) ((unsigned char *) &(sin_addr)->s_addr)[0], \
-			(unsigned int) ((unsigned char *) &(sin_addr)->s_addr)[1], \
-			(unsigned int) ((unsigned char *) &(sin_addr)->s_addr)[2], \
-			(unsigned int) ((unsigned char *) &(sin_addr)->s_addr)[3]
 
 #endif

@@ -2,7 +2,7 @@
    +----------------------------------------------------------------------+
    | PHP Version 7                                                        |
    +----------------------------------------------------------------------+
-   | Copyright (c) 1997-2014 The PHP Group                                |
+   | Copyright (c) The PHP Group                                          |
    +----------------------------------------------------------------------+
    | This source file is subject to version 3.01 of the PHP license,      |
    | that is bundled with this package in the file LICENSE, and is        |
@@ -15,8 +15,6 @@
    | Authors: Marcus Boerger <helly@php.net>                              |
    +----------------------------------------------------------------------+
  */
-
-/* $Id$ */
 
 #ifndef SPL_DIRECTORY_H
 #define SPL_DIRECTORY_H
@@ -42,10 +40,10 @@ typedef enum {
 
 typedef struct _spl_filesystem_object  spl_filesystem_object;
 
-typedef void (*spl_foreign_dtor_t)(spl_filesystem_object *object TSRMLS_DC);
-typedef void (*spl_foreign_clone_t)(spl_filesystem_object *src, spl_filesystem_object *dst TSRMLS_DC);
+typedef void (*spl_foreign_dtor_t)(spl_filesystem_object *object);
+typedef void (*spl_foreign_clone_t)(spl_filesystem_object *src, spl_filesystem_object *dst);
 
-PHPAPI char* spl_filesystem_object_get_path(spl_filesystem_object *intern, size_t *len TSRMLS_DC);
+PHPAPI char* spl_filesystem_object_get_path(spl_filesystem_object *intern, size_t *len);
 
 typedef struct _spl_other_handler {
 	spl_foreign_dtor_t     dtor;
@@ -61,12 +59,12 @@ typedef struct {
 
 struct _spl_filesystem_object {
 	void               *oth;
-	spl_other_handler  *oth_handler;
+	const spl_other_handler  *oth_handler;
 	char               *_path;
-	int                _path_len;
+	size_t             _path_len;
 	char               *orig_path;
 	char               *file_name;
-	int                file_name_len;
+	size_t             file_name_len;
 	SPL_FS_OBJ_TYPE    type;
 	zend_long               flags;
 	zend_class_entry   *file_class;
@@ -76,7 +74,7 @@ struct _spl_filesystem_object {
 			php_stream         *dirp;
 			php_stream_dirent  entry;
 			char               *sub_path;
-			int                sub_path_len;
+			size_t             sub_path_len;
 			int                index;
 			int                is_recursive;
 			zend_function      *func_rewind;
@@ -88,7 +86,7 @@ struct _spl_filesystem_object {
 			php_stream_context *context;
 			zval               *zcontext;
 			char               *open_mode;
-			int                open_mode_len;
+			size_t             open_mode_len;
 			zval               current_zval;
 			char               *current_line;
 			size_t             current_line_len;
@@ -98,10 +96,9 @@ struct _spl_filesystem_object {
 			zend_function      *func_getCurr;
 			char               delimiter;
 			char               enclosure;
-			char               escape;
+			int                escape;
 		} file;
 	} u;
-	spl_filesystem_iterator    *it;
 	zend_object        std;
 };
 
@@ -112,15 +109,17 @@ static inline spl_filesystem_object *spl_filesystem_from_obj(zend_object *obj) /
 
 #define Z_SPLFILESYSTEM_P(zv)  spl_filesystem_from_obj(Z_OBJ_P((zv)))
 
-static inline spl_filesystem_iterator* spl_filesystem_object_to_iterator(spl_filesystem_object *obj TSRMLS_DC)
+static inline spl_filesystem_iterator* spl_filesystem_object_to_iterator(spl_filesystem_object *obj)
 {
-	obj->it = ecalloc(1, sizeof(spl_filesystem_iterator));
-	obj->it->object = (void *)obj;
-	zend_iterator_init(&obj->it->intern TSRMLS_CC);
-	return obj->it;
+	spl_filesystem_iterator    *it;
+
+	it = ecalloc(1, sizeof(spl_filesystem_iterator));
+	it->object = (void *)obj;
+	zend_iterator_init(&it->intern);
+	return it;
 }
 
-static inline spl_filesystem_object* spl_filesystem_iterator_to_object(spl_filesystem_iterator *it TSRMLS_DC)
+static inline spl_filesystem_object* spl_filesystem_iterator_to_object(spl_filesystem_iterator *it)
 {
 	return (spl_filesystem_object*)it->object;
 }
@@ -148,12 +147,3 @@ static inline spl_filesystem_object* spl_filesystem_iterator_to_object(spl_files
 #define SPL_FILE_DIR_OTHERS_MASK           0x00003000 /* mask used for get/setFlags */
 
 #endif /* SPL_DIRECTORY_H */
-
-/*
- * Local Variables:
- * c-basic-offset: 4
- * tab-width: 4
- * End:
- * vim600: fdm=marker
- * vim: noet sw=4 ts=4
- */

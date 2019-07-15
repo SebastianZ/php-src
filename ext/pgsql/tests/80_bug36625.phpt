@@ -8,13 +8,13 @@ require_once('skipif.inc');
 <?php
 
 require_once('config.inc');
-	
+
 $dbh = @pg_connect($conn_str);
 if (!$dbh) {
 	die ('Could not connect to the server');
 }
 
-$tracefile = dirname(__FILE__) . '/trace.tmp';
+$tracefile = __DIR__ . '/trace.tmp';
 
 @unlink($tracefile);
 var_dump(file_exists($tracefile));
@@ -42,7 +42,13 @@ var_dump(file_exists($tracefile));
 ?>
 ===DONE===
 --CLEAN--
-<?php unlink($tracefile); ?>
+<?php
+
+$tracefile = __DIR__ . '/trace.tmp';
+
+unlink($tracefile);
+
+?>
 --EXPECTF--
 bool(false)
 resource(%d) of type (pgsql result)

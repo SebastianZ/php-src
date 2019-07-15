@@ -1,5 +1,5 @@
 --TEST--
-php-users@php.gr.jp #10830 
+php-users@php.gr.jp #10830
 --SKIPIF--
 <?php
 extension_loaded('mbstring') or die('skip mbstring not available');
@@ -10,11 +10,8 @@ function_exists('mb_ereg') or die("skip mb_ereg() is not available in this build
 $a="aaa\n<>";
 
 var_dump( mb_ereg("^[^><]+$",$a) );
-var_dump( ereg("^[^><]+$",$a) );
+var_dump( !!preg_match("/^[^><]+$/",$a) );
 ?>
-
---EXPECTF--
+--EXPECT--
 bool(false)
-
-Deprecated: Function ereg() is deprecated in %s on line %d
 bool(false)

@@ -6,7 +6,7 @@ SPL: RegexIterator::ALL_MATCHES
 class MyRegexIterator extends RegexIterator
 {
 	public $uk, $re;
-	
+
 	function __construct($it, $re, $mode, $flags = 0)
 	{
 		$this->uk = $flags & self::USE_KEY;
@@ -22,7 +22,7 @@ class MyRegexIterator extends RegexIterator
 			var_dump($v);
 		}
 	}
-	
+
 	function accept()
 	{
 		@preg_match_all($this->re, (string)($this->uk ? $this->key() : $this->current()), $sub);
@@ -46,122 +46,14 @@ var_dump($ar);
 <?php exit(0); ?>
 --EXPECTF--
 bool(true)
-int(0)
-array(3) {
-  [0]=>
-  array(0) {
-  }
-  [1]=>
-  array(0) {
-  }
-  [2]=>
-  array(0) {
-  }
-}
 bool(true)
-int(1)
-array(3) {
-  [0]=>
-  array(0) {
-  }
-  [1]=>
-  array(0) {
-  }
-  [2]=>
-  array(0) {
-  }
-}
 bool(true)
-int(2)
-array(3) {
-  [0]=>
-  array(0) {
-  }
-  [1]=>
-  array(0) {
-  }
-  [2]=>
-  array(0) {
-  }
-}
 bool(true)
-int(3)
-array(3) {
-  [0]=>
-  array(0) {
-  }
-  [1]=>
-  array(0) {
-  }
-  [2]=>
-  array(0) {
-  }
-}
 bool(true)
-int(4)
-array(3) {
-  [0]=>
-  array(0) {
-  }
-  [1]=>
-  array(0) {
-  }
-  [2]=>
-  array(0) {
-  }
-}
 bool(true)
-int(5)
-array(3) {
-  [0]=>
-  array(0) {
-  }
-  [1]=>
-  array(0) {
-  }
-  [2]=>
-  array(0) {
-  }
-}
 bool(true)
-int(6)
-array(3) {
-  [0]=>
-  array(0) {
-  }
-  [1]=>
-  array(0) {
-  }
-  [2]=>
-  array(0) {
-  }
-}
 bool(true)
-int(7)
-array(3) {
-  [0]=>
-  array(0) {
-  }
-  [1]=>
-  array(0) {
-  }
-  [2]=>
-  array(0) {
-  }
-}
 bool(true)
-int(8)
-array(3) {
-  [0]=>
-  array(0) {
-  }
-  [1]=>
-  array(0) {
-  }
-  [2]=>
-  array(0) {
-  }
-}
 bool(true)
 int(0)
 array(2) {

@@ -1,3 +1,4 @@
+#!/usr/bin/env php
 <?php
 
 // script to upgrade PCRE. just drop the pcre-x.x.tar.xx here and run the script
@@ -61,18 +62,18 @@ function recurse($path)
 			die("$newfile is not available any more\n");
 		}
 
-		// maintain file mtimes so that cvs doesnt get crazy
+		// maintain file mtimes so that cvs doesn't get crazy
 		if (file_get_contents($newfile) !== file_get_contents($file)) {
 			copy($newfile, $file);
 		}
 
 		// always include the config.h file
 		$content    = file_get_contents($newfile);
-		$newcontent = preg_replace('/#\s*ifdef HAVE_CONFIG_H\s*(.+)\s*#\s*endif/', '$1', $content);
+		//$newcontent = preg_replace('/#\s*ifdef HAVE_CONFIG_H\s*(.+)\s*#\s*endif/', '$1', $content);
 
-		if ($content !== $newcontent) {
-			file_put_contents($file, $newcontent);
-		}
+		//if ($content !== $newcontent) {
+		//	file_put_contents($file, $newcontent);
+		//}
 
 		echo "OK\n";
 	}
@@ -107,11 +108,6 @@ $prepend_config_h = '
 #ifndef PHP_WIN32
 # include <php_config.h>
 #endif
-
-#undef PACKAGE_NAME
-#undef PACKAGE_VERSION
-#undef PACKAGE_TARNAME
-#undef PACKAGE_STRING
 
 #define SUPPORT_UCP
 #define SUPPORT_UTF8

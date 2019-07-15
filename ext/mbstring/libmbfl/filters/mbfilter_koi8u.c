@@ -5,7 +5,7 @@
  * LICENSE NOTICES
  *
  * This file is part of "streamable kanji code filter and converter",
- * which is distributed under the terms of GNU Lesser General Public 
+ * which is distributed under the terms of GNU Lesser General Public
  * License (version 2) as published by the Free Software Foundation.
  *
  * This software is distributed in the hope that it will be useful,
@@ -42,7 +42,9 @@ const mbfl_encoding mbfl_encoding_koi8u = {
 	"KOI8-U",
 	(const char *(*)[])&mbfl_encoding_koi8u_aliases,
 	NULL,
-	MBFL_ENCTYPE_SBCS
+	MBFL_ENCTYPE_SBCS,
+	&vtbl_koi8u_wchar,
+	&vtbl_wchar_koi8u
 };
 
 const struct mbfl_identify_vtbl vtbl_identify_koi8u = {
@@ -142,5 +144,5 @@ static int mbfl_filt_ident_koi8u(int c, mbfl_identify_filter *filter)
 		filter->flag = 0;
 	else
 		filter->flag = 1; /* not it */
-	return c;	
+	return c;
 }

@@ -6,20 +6,15 @@ Test dirname() function : error conditions
    Description: Returns directory name component of path.
 */
 echo "*** Testing error conditions ***\n";
-// zero arguments 
-var_dump( dirname() );
 
-// more than expected no. of arguments
-var_dump( dirname("/var/tmp/bar.gz", ".gz") );
+// Bad arg
+var_dump( dirname("/var/tmp/bar.gz", 0) );
 
 echo "Done\n";
 ?>
 --EXPECTF--
 *** Testing error conditions ***
 
-Warning: dirname() expects exactly 1 parameter, 0 given in %s on line %d
-NULL
-
-Warning: dirname() expects exactly 1 parameter, 2 given in %s on line %d
+Warning: dirname(): Invalid argument, levels must be >= 1 in %s on line %d
 NULL
 Done

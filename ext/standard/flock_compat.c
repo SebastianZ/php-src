@@ -2,7 +2,7 @@
    +----------------------------------------------------------------------+
    | PHP Version 7                                                        |
    +----------------------------------------------------------------------+
-   | Copyright (c) 1997-2014 The PHP Group                                |
+   | Copyright (c) The PHP Group                                          |
    +----------------------------------------------------------------------+
    | This source file is subject to version 3.01 of the PHP license,      |
    | that is bundled with this package in the file LICENSE, and is        |
@@ -15,8 +15,6 @@
    | Author: Sascha Schumann <sascha@schumann.cx>                         |
    +----------------------------------------------------------------------+
 */
-
-/* $Id$ */
 
 #include "php.h"
 #include <errno.h>
@@ -31,10 +29,6 @@
 #ifdef PHP_WIN32
 #include <io.h>
 #include "config.w32.h"
-#endif
-
-#ifdef NETWARE
-#include <netinet/in.h>
 #endif
 
 #ifndef HAVE_FLOCK
@@ -52,7 +46,7 @@ PHPAPI int php_flock(int fd, int operation)
 
 	flck.l_start = flck.l_len = 0;
 	flck.l_whence = SEEK_SET;
-	
+
 	if (operation & LOCK_SH)
 		flck.l_type = F_RDLCK;
 	else if (operation & LOCK_EX)
@@ -66,7 +60,7 @@ PHPAPI int php_flock(int fd, int operation)
 
 	ret = fcntl(fd, operation & LOCK_NB ? F_SETLK : F_SETLKW, &flck);
 
-	if (operation & LOCK_NB && ret == -1 && 
+	if (operation & LOCK_NB && ret == -1 &&
 			(errno == EACCES || errno == EAGAIN))
 		errno = EWOULDBLOCK;
 
@@ -125,8 +119,12 @@ PHPAPI int php_flock(int fd, int operation)
     DWORD low = 1, high = 0;
     OVERLAPPED offset =
     {0, 0, 0, 0, NULL};
-    if (hdl < 0)
+	DWORD err;
+
+    if (INVALID_HANDLE_VALUE == hdl) {
+		_set_errno(EBADF);
         return -1;              /* error in file descriptor */
+	}
     /* bug for bug compatible with Unix */
     UnlockFileEx(hdl, 0, low, high, &offset);
     switch (operation & ~LOCK_NB) {    /* translate to LockFileEx() op */
@@ -146,12 +144,14 @@ PHPAPI int php_flock(int fd, int operation)
         default:                /* default */
             break;
     }
-	/* Under Win32 MT library, errno is not a variable but a function call,
-	 * which cannot be assigned to.
-	 */
-#if !defined(PHP_WIN32)
-    errno = EINVAL;             /* bad call */
-#endif
+
+	err = GetLastError();
+	if (ERROR_LOCK_VIOLATION == err || ERROR_SHARING_VIOLATION == err) {
+		_set_errno(EWOULDBLOCK);
+	} else {
+		_set_errno(EINVAL);             /* bad call */
+	}
+
     return -1;
 }
 /* }}} */
@@ -223,17 +223,8 @@ int inet_aton(const char *cp, struct in_addr *ap)
         ap->s_addr = htonl(addr);
     }
 
-    return 1;    
+    return 1;
 }
 /* }}} */
 #endif /* !HAVE_INET_ATON */
 #endif
-
-/*
- * Local variables:
- * tab-width: 4
- * c-basic-offset: 4
- * End:
- * vim600: sw=4 ts=4 fdm=marker
- * vim<600: sw=4 ts=4
- */

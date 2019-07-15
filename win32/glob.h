@@ -1,4 +1,3 @@
-/*      $Id$ */
 /*	OpenBSD: glob.h,v 1.7 2002/02/17 19:42:21 millert Exp 	*/
 /*	NetBSD: glob.h,v 1.5 1994/10/26 00:55:56 cgd Exp 	*/
 
@@ -47,7 +46,8 @@
 # include <sys/cdefs.h>
 #endif
 
-zend_stat_t;
+#include "Zend/zend_stream.h"
+
 typedef struct {
 	int gl_pathc;		/* Count of total paths so far. */
 	int gl_matchc;		/* Count of paths matching pattern. */
@@ -63,7 +63,7 @@ typedef struct {
 	 * and lstat(2).
 	 */
 	void (*gl_closedir)(void *);
-	struct dirent *(*gl_readdir)(void *);	
+	struct dirent *(*gl_readdir)(void *);
 	void *(*gl_opendir)(const char *);
 	int (*gl_lstat)(const char *, zend_stat_t *);
 	int (*gl_stat)(const char *, zend_stat_t *);

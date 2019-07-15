@@ -5,7 +5,7 @@
  * LICENSE NOTICES
  *
  * This file is part of "streamable kanji code filter and converter",
- * which is distributed under the terms of GNU Lesser General Public 
+ * which is distributed under the terms of GNU Lesser General Public
  * License (version 2) as published by the Free Software Foundation.
  *
  * This software is distributed in the hope that it will be useful,
@@ -66,7 +66,9 @@ const mbfl_encoding mbfl_encoding_cp932 = {
 	"Shift_JIS",
 	(const char *(*)[])&mbfl_encoding_cp932_aliases,
 	mblen_table_sjis,
-	MBFL_ENCTYPE_MBCS | MBFL_ENCTYPE_GL_UNSAFE
+	MBFL_ENCTYPE_MBCS | MBFL_ENCTYPE_GL_UNSAFE,
+	&vtbl_cp932_wchar,
+	&vtbl_wchar_cp932
 };
 
 const struct mbfl_identify_vtbl vtbl_identify_cp932 = {
@@ -346,5 +348,3 @@ static int mbfl_filt_ident_cp932(int c, mbfl_identify_filter *filter)
 
 	return c;
 }
-
-

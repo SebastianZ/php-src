@@ -3,14 +3,14 @@ PDO PgSQL Bug #62593 (Emulate prepares behave strangely with PARAM_BOOL)
 --SKIPIF--
 <?php
 if (!extension_loaded('pdo') || !extension_loaded('pdo_pgsql')) die('skip not loaded');
-require dirname(__FILE__) . '/config.inc';
-require dirname(__FILE__) . '/../../../ext/pdo/tests/pdo_test.inc';
+require __DIR__ . '/config.inc';
+require __DIR__ . '/../../../ext/pdo/tests/pdo_test.inc';
 PDOTest::skip();
 ?>
 --FILE--
 <?php
-require dirname(__FILE__) . '/../../../ext/pdo/tests/pdo_test.inc';
-$db = PDOTest::test_factory(dirname(__FILE__) . '/common.phpt');
+require __DIR__ . '/../../../ext/pdo/tests/pdo_test.inc';
+$db = PDOTest::test_factory(__DIR__ . '/common.phpt');
 $db->setAttribute(PDO::ATTR_EMULATE_PREPARES, true);
 $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_SILENT);
 $errors = array();
@@ -34,6 +34,19 @@ $query->execute();
 $errors[] = $query->errorInfo();
 var_dump($value);
 
+// Try with strings - Bug #68351
+$value = '0';
+$query->bindParam(':foo', $value, PDO::PARAM_BOOL);
+$query->execute();
+$errors[] = $query->errorInfo();
+var_dump($query->fetchColumn());
+
+$value = "abc";
+$query->bindParam(':foo', $value, PDO::PARAM_BOOL);
+$query->execute();
+$errors[] = $query->errorInfo();
+var_dump($query->fetchColumn());
+
 $expect = 'No errors found';
 
 foreach ($errors as $error)
@@ -45,7 +58,9 @@ foreach ($errors as $error)
 }
 echo $expect;
 ?>
---EXPECTF--
+--EXPECT--
+bool(true)
+bool(false)
 bool(true)
 bool(false)
 No errors found

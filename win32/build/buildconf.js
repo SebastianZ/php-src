@@ -2,7 +2,7 @@
   +----------------------------------------------------------------------+
   | PHP Version 7                                                        |
   +----------------------------------------------------------------------+
-  | Copyright (c) 1997-2008 The PHP Group                                |
+  | Copyright (c) The PHP Group                                          |
   +----------------------------------------------------------------------+
   | This source file is subject to version 3.01 of the PHP license,      |
   | that is bundled with this package in the file LICENSE, and is        |
@@ -16,14 +16,12 @@
   +----------------------------------------------------------------------+
 */
 
-/* $Id: buildconf.js,v 1.13.2.2.2.1.2.5 2009-01-02 12:18:21 kalle Exp $ */
 // This generates a configure script for win32 build
 
 WScript.StdOut.WriteLine("Rebuilding configure.js");
 var FSO = WScript.CreateObject("Scripting.FileSystemObject");
 var C = FSO.CreateTextFile("configure.js", true);
 var B = FSO.CreateTextFile("configure.bat", true);
-var DSP = false;
 
 var modules = "";
 var MODULES = WScript.CreateObject("Scripting.Dictionary");
@@ -57,17 +55,17 @@ function find_config_w32(dirname)
 	var c, i, ok, n;
 	var item = null;
 	var re_dep_line = new RegExp("ADD_EXTENSION_DEP\\([^,]*\\s*,\\s*['\"]([^'\"]+)['\"].*\\)", "gm");
-	
+
 	for (; !fc.atEnd(); fc.moveNext())
 	{
 		ok = true;
 		/* check if we already picked up a module with the same dirname;
 		 * if we have, don't include it here */
 		n = FSO.GetFileName(fc.item());
-		
+
 		if (n == '.svn' || n == 'tests')
 			continue;
-			
+
 	//	WScript.StdOut.WriteLine("checking " + dirname + "/" + n);
 		if (MODULES.Exists(n)) {
 			WScript.StdOut.WriteLine("Skipping " + dirname + "/" + n + " -- already have a module with that name");
@@ -197,11 +195,6 @@ function buildconf_process_args()
 			WScript.StdOut.WriteLine("Adding " + argval + " to the module search path");
 			module_dirs[module_dirs.length] = argval;
 		}
-
-		if (argname == '--add-project-files') {
-			WScript.StdOut.WriteLine("Adding dsp templates into the mix");
-			DSP = true;
-		}
 	}
 }
 
@@ -211,16 +204,6 @@ buildconf_process_args();
 C.WriteLine("/* This file automatically generated from win32/build/confutils.js */");
 C.WriteLine("MODE_PHPIZE=false;");
 C.Write(file_get_contents("win32/build/confutils.js"));
-
-// If project files were requested, pull in the code to generate them
-if (DSP == true) {
-	C.WriteLine('PHP_DSP="yes"');
-	C.WriteBlankLines(1);
-	C.Write(file_get_contents("win32/build/projectgen.js"));
-} else {
-	C.WriteLine('PHP_DSP="no"');
-	C.WriteBlankLines(1);
-}
 
 // Pull in code from sapi and extensions
 modules = file_get_contents("win32/build/config.w32");
@@ -260,6 +243,10 @@ for (i = 0; i < calls.length; i++) {
 }
 
 C.WriteBlankLines(1);
+C.WriteLine("check_binary_tools_sdk();");
+C.WriteBlankLines(1);
+C.WriteLine("STDOUT.WriteLine(\"PHP Version: \" + PHP_VERSION_STRING);");
+C.WriteLine("STDOUT.WriteBlankLines(1);");
 C.WriteLine("conf_process_args();");
 C.WriteBlankLines(1);
 

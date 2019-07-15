@@ -2,7 +2,7 @@
    +----------------------------------------------------------------------+
    | PHP Version 7                                                        |
    +----------------------------------------------------------------------+
-   | Copyright (c) 1997-2014 The PHP Group                                |
+   | Copyright (c) The PHP Group                                          |
    +----------------------------------------------------------------------+
    | This source file is subject to version 3.01 of the PHP license,      |
    | that is bundled with this package in the file LICENSE, and is        |
@@ -17,8 +17,6 @@
    +----------------------------------------------------------------------+
 */
 
-/* $Id$ */
-
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
@@ -29,9 +27,9 @@
 
 
 /*
-* class domtypeinfo 
+* class domtypeinfo
 *
-* URL: http://www.w3.org/TR/2003/WD-DOM-Level-3-Core-20030226/DOM3-Core.html#TypeInfo
+* URL: https://www.w3.org/TR/2003/WD-DOM-Level-3-Core-20030226/DOM3-Core.html#TypeInfo
 * Since: DOM Level 3
 */
 
@@ -41,12 +39,12 @@ const zend_function_entry php_dom_typeinfo_class_functions[] = {
 
 /* {{{ attribute protos, not implemented yet */
 
-/* {{{ type_name	string	
-readonly=yes 
+/* {{{ type_name	string
+readonly=yes
 URL: http://www.w3.org/TR/2003/WD-DOM-Level-3-Core-20030226/DOM3-Core.html#TypeInfo-typeName
-Since: 
+Since:
 */
-int dom_typeinfo_type_name_read(dom_object *obj, zval *retval TSRMLS_DC)
+int dom_typeinfo_type_name_read(dom_object *obj, zval *retval)
 {
 	ZVAL_NULL(retval);
 	return SUCCESS;
@@ -54,12 +52,12 @@ int dom_typeinfo_type_name_read(dom_object *obj, zval *retval TSRMLS_DC)
 
 /* }}} */
 
-/* {{{ type_namespace	string	
-readonly=yes 
+/* {{{ type_namespace	string
+readonly=yes
 URL: http://www.w3.org/TR/2003/WD-DOM-Level-3-Core-20030226/DOM3-Core.html#TypeInfo-typeNamespace
-Since: 
+Since:
 */
-int dom_typeinfo_type_namespace_read(dom_object *obj, zval *retval TSRMLS_DC)
+int dom_typeinfo_type_namespace_read(dom_object *obj, zval *retval)
 {
 	ZVAL_NULL(retval);
 	return SUCCESS;
@@ -70,12 +68,3 @@ int dom_typeinfo_type_namespace_read(dom_object *obj, zval *retval TSRMLS_DC)
 /* }}} */
 
 #endif
-
-/*
- * Local variables:
- * tab-width: 4
- * c-basic-offset: 4
- * End:
- * vim600: noet sw=4 ts=4 fdm=marker
- * vim<600: noet sw=4 ts=4
- */

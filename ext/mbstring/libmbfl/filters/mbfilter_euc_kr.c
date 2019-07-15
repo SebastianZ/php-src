@@ -5,7 +5,7 @@
  * LICENSE NOTICES
  *
  * This file is part of "streamable kanji code filter and converter",
- * which is distributed under the terms of GNU Lesser General Public 
+ * which is distributed under the terms of GNU Lesser General Public
  * License (version 2) as published by the Free Software Foundation.
  *
  * This software is distributed in the hope that it will be useful,
@@ -24,7 +24,7 @@
 /*
  * The source code included in this files was separated from mbfilter_kr.c
  * by moriyoshi koizumi <moriyoshi@php.net> on 4 dec 2002.
- * 
+ *
  */
 
 #ifdef HAVE_CONFIG_H
@@ -64,7 +64,9 @@ const mbfl_encoding mbfl_encoding_euc_kr = {
 	"EUC-KR",
 	(const char *(*)[])&mbfl_encoding_euc_kr_aliases,
 	mblen_table_euckr,
-	MBFL_ENCTYPE_MBCS
+	MBFL_ENCTYPE_MBCS,
+	&vtbl_euckr_wchar,
+	&vtbl_wchar_euckr
 };
 
 const struct mbfl_identify_vtbl vtbl_identify_euckr = {
@@ -142,7 +144,7 @@ mbfl_filt_conv_euckr_wchar(int c, mbfl_convert_filter *filter)
 					w = 0;
 				}
 			}
-			
+
 			if (w <= 0) {
 				w = (c1 << 8) | c;
 				w &= MBFL_WCSPLANE_MASK;
@@ -196,7 +198,7 @@ mbfl_filt_conv_wchar_euckr(int c, mbfl_convert_filter *filter)
 	c1 = (s >> 8) & 0xff;
 	c2 = s & 0xff;
 	/* exclude UHC extension area */
-	if (c1 < 0xa1 || c2 < 0xa1){ 
+	if (c1 < 0xa1 || c2 < 0xa1){
 		s = c;
 	}
 

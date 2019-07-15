@@ -1,7 +1,9 @@
 --TEST--
 Bug #53512 (NumberFormatter::setSymbol crash on bogus $attr values)
 --SKIPIF--
-<?php if( !extension_loaded( 'intl' ) ) print 'skip'; ?>
+<?php if( !extension_loaded( 'intl' ) ) die('skip');
+if (PHP_INT_SIZE != 8) die('skip 64-bit only');
+?>
 --FILE--
 <?php
 
@@ -14,7 +16,7 @@ foreach ($badvals as $val) {
 }
 
 ?>
---EXPECTF--
+--EXPECT--
 bool(false)
 string(65) "numfmt_set_symbol: invalid symbol value: U_ILLEGAL_ARGUMENT_ERROR"
 bool(false)
